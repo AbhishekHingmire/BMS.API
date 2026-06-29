@@ -20,6 +20,6 @@ namespace BMS.API.Modules.Shared.Models
         
         // Navigation properties
         public Library Library { get; set; }
-        public ICollection<Seat> Seats { get; set; }
+        public ICollection<Seat> Seats { get; set; } = new List<Seat>();
     }
 }

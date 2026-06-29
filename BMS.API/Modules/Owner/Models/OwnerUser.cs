@@ -13,6 +13,19 @@ namespace BMS.API.Modules.Owner.Models
         
         public OwnerRole Role { get; set; }
         
+        // Profile
+        public string AvatarUrl { get; set; }
+
+        // Billing
+        public string BankName { get; set; }
+        public string AccountNumber { get; set; }
+        public string IfscCode { get; set; }
+        public string UpiId { get; set; }
+        
+        // Notifications
+        public bool EmailNotificationsEnabled { get; set; } = true;
+        public bool SmsNotificationsEnabled { get; set; } = false;
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 

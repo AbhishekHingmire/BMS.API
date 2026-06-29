@@ -16,8 +16,9 @@ namespace BMS.API.Modules.Shared.Models
         
         public string Name { get; set; }
         public bool IsEnabled { get; set; } = true;
-        
         public string DaysOfWeekString { get; set; } // e.g. "1,2,3,4,5"
+        
+        public bool IsDeleted { get; set; } = false;
         
         // Navigation properties
         public Library Library { get; set; }
