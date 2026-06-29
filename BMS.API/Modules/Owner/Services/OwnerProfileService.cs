@@ -111,6 +111,11 @@ namespace BMS.API.Modules.Owner.Services
 
             if (rule == null)
             {
+                var ownerExists = await _context.OwnerUsers.AnyAsync(u => u.Id == ownerId);
+                if (!ownerExists)
+                {
+                    throw new UnauthorizedAccessException("Owner account no longer exists. Please log in again.");
+                }
                 rule = new OwnerNotificationRule
                 {
                     Id = Guid.NewGuid(),
@@ -143,6 +148,12 @@ namespace BMS.API.Modules.Owner.Services
 
         public async Task<BroadcastHistoryDto> CreateBroadcastAsync(Guid ownerId, BroadcastDto request)
         {
+            var ownerExists = await _context.OwnerUsers.AnyAsync(u => u.Id == ownerId);
+            if (!ownerExists)
+            {
+                throw new UnauthorizedAccessException("Owner account no longer exists. Please log in again.");
+            }
+
             var broadcast = new OwnerBroadcastHistory
             {
                 Id = Guid.NewGuid(),

@@ -115,14 +115,15 @@ namespace BMS.API.Modules.Owner.Services
             {
                 Id = Guid.NewGuid(),
                 OwnerId = ownerId,
-                Name = request.Name,
-                Description = request.Description,
-                Address = request.Address,
-                AreaName = request.AreaName,
-                City = request.City,
-                AmenitiesString = request.AmenitiesString,
+                Name = request.Name ?? "",
+                Description = request.Description ?? "",
+                Address = request.Address ?? "",
+                AreaName = request.AreaName ?? "",
+                City = request.City ?? "",
+                AmenitiesString = request.AmenitiesString ?? "",
                 PhotosJson = request.Photos != null ? System.Text.Json.JsonSerializer.Serialize(request.Photos) : "[]",
-                CancellationPolicy = request.CancellationPolicy,
+                CancellationPolicy = request.CancellationPolicy ?? "",
+                FaqJson = "[]",
                 IsVerified = true,
                 IsPublished = false
             };
@@ -144,7 +145,7 @@ namespace BMS.API.Modules.Owner.Services
                 {
                     Id = newShiftId,
                     LibraryId = library.Id,
-                    Name = sDto.Name,
+                    Name = sDto.Name ?? "Untitled Shift",
                     StartTime = sDto.StartTime,
                     EndTime = sDto.EndTime
                 };
@@ -159,7 +160,7 @@ namespace BMS.API.Modules.Owner.Services
                 {
                     Id = newAreaId,
                     LibraryId = library.Id,
-                    Name = aDto.Name,
+                    Name = aDto.Name ?? "Untitled Area",
                     TagsString = aDto.TagsString,
                     PriceModifierType = aDto.PriceModifierType,
                     PriceModifierValue = aDto.PriceModifierValue,
@@ -173,7 +174,7 @@ namespace BMS.API.Modules.Owner.Services
                     {
                         Id = Guid.NewGuid(),
                         AreaId = newAreaId,
-                        Number = seatDto.Number,
+                        Number = seatDto.Number ?? "U1",
                         GenderRestriction = seatDto.GenderRestriction,
                         PriceOverride = seatDto.PriceOverride
                     };
@@ -201,7 +202,7 @@ namespace BMS.API.Modules.Owner.Services
                 {
                     Id = Guid.NewGuid(),
                     LibraryId = library.Id,
-                    Name = pDto.Name,
+                    Name = pDto.Name ?? "Untitled Plan",
                     Duration = pDto.Duration,
                     ShiftId = mappedShiftId,
                     BasePrice = pDto.BasePrice,
