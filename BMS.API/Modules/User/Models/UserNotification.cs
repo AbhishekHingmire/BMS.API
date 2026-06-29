@@ -10,6 +10,7 @@ namespace BMS.API.Modules.User.Models
         public string Body { get; set; } = string.Empty;
         public bool IsRead { get; set; }
         public DateTime CreatedAt { get; set; }
+        public Guid? BroadcastId { get; set; }
         
         public EndUser User { get; set; }
     }

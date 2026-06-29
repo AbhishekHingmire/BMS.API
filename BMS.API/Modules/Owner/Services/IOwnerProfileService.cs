@@ -14,6 +14,9 @@ namespace BMS.API.Modules.Owner.Services
         Task<NotificationRuleDto> UpdateRuleAsync(Guid ownerId, UpdateNotificationRuleDto request);
         
         Task<BroadcastHistoryDto> CreateBroadcastAsync(Guid ownerId, BroadcastDto request);
+        Task<int> GetAudienceCountAsync(Guid ownerId, string libraryId, string audience);
+        Task<BroadcastHistoryDto> UpdateBroadcastAsync(Guid ownerId, Guid broadcastId, BroadcastDto request);
+        Task<bool> DeleteBroadcastAsync(Guid ownerId, Guid broadcastId);
         Task<IEnumerable<BroadcastHistoryDto>> GetBroadcastHistoryAsync(Guid ownerId);
     }
 }

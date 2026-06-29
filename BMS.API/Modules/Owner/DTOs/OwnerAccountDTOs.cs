@@ -43,6 +43,8 @@ namespace BMS.API.Modules.Owner.DTOs
         public Guid Id { get; set; }
         public string RuleType { get; set; }
         public bool IsEnabled { get; set; }
+        public string? SubjectTemplate { get; set; }
+        public string? BodyTemplate { get; set; }
     }
 
     public class UpdateNotificationRuleDto
@@ -50,6 +52,8 @@ namespace BMS.API.Modules.Owner.DTOs
         [Required]
         public string RuleType { get; set; }
         public bool IsEnabled { get; set; }
+        public string? SubjectTemplate { get; set; }
+        public string? BodyTemplate { get; set; }
     }
 
     public class BroadcastDto

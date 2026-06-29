@@ -35,7 +35,7 @@ namespace BMS.API.Modules.Owner.Services
                 .Include(b => b.Shift)
                 .Include(b => b.Library)
                 .Include(b => b.User)
-                .Where(b => libraryIds.Contains(b.LibraryId) && b.Status != BookingStatus.Cancelled)
+                .Where(b => libraryIds.Contains(b.LibraryId) && b.Status != BookingStatus.Cancelled && !b.IsDeactivated)
                 .ToListAsync();
 
             // Total seats across all requested libraries
@@ -66,7 +66,7 @@ namespace BMS.API.Modules.Owner.Services
                 .Select(g => g.OrderByDescending(x => x.EndDate).First())
                 .ToList();
 
-            var expiringBookings = latestBookings.Where(b => (b.Status == BookingStatus.Active || b.Status == BookingStatus.PendingArrival) && (b.EndDate - today).TotalDays >= -1 && (b.EndDate - today).TotalDays <= 8).ToList();
+            var expiringBookings = latestBookings.Where(b => (b.Status == BookingStatus.Active || b.Status == BookingStatus.PendingArrival) && (b.EndDate - today).TotalDays >= -1 && (b.EndDate - today).TotalDays <= 7).ToList();
             
             Console.WriteLine($"[DEBUG] Total Latest Bookings: {latestBookings.Count}");
             foreach (var b in latestBookings)
@@ -88,20 +88,20 @@ namespace BMS.API.Modules.Owner.Services
             
             var monthStart = today.AddDays(-30);
 
-            dto.TodaysRevenue = paidBookings.Where(b => b.CreatedAt.Date == today).Sum(b => b.Price);
-            dto.SevenDaysRevenue = paidBookings.Where(b => b.CreatedAt.Date >= weekStart).Sum(b => b.Price);
-            dto.ThirtyDaysRevenue = paidBookings.Where(b => b.CreatedAt.Date >= monthStart).Sum(b => b.Price);
+            dto.TodaysRevenue = paidBookings.Where(b => b.CreatedAt.Date == today).Sum(b => b.Price - (b.RefundedAmount ?? 0m));
+            dto.SevenDaysRevenue = paidBookings.Where(b => b.CreatedAt.Date >= weekStart).Sum(b => b.Price - (b.RefundedAmount ?? 0m));
+            dto.ThirtyDaysRevenue = paidBookings.Where(b => b.CreatedAt.Date >= monthStart).Sum(b => b.Price - (b.RefundedAmount ?? 0m));
             
             dto.PendingCollectionCount = unpaidBookings.Count;
-            dto.PendingCollectionAmount = unpaidBookings.Sum(b => b.Price);
+            dto.PendingCollectionAmount = unpaidBookings.Sum(b => b.Price - (b.RefundedAmount ?? 0m));
 
             // Daily metrics for 30 days
             for (int i = 29; i >= 0; i--)
             {
                 var d = today.AddDays(-i);
                 var dayPaid = paidBookings.Where(b => b.CreatedAt.Date == d).ToList();
-                var online = dayPaid.Where(b => b.PaymentMethod == PaymentMethod.OnlinePrepay).Sum(b => b.Price);
-                var offline = dayPaid.Where(b => b.PaymentMethod == PaymentMethod.PayAtLibrary).Sum(b => b.Price);
+                var online = dayPaid.Where(b => b.PaymentMethod == PaymentMethod.OnlinePrepay).Sum(b => b.Price - (b.RefundedAmount ?? 0m));
+                var offline = dayPaid.Where(b => b.PaymentMethod == PaymentMethod.PayAtLibrary).Sum(b => b.Price - (b.RefundedAmount ?? 0m));
                 
                 var activeThatDay = bookings.Where(b => b.StartDate <= d && b.EndDate >= d).Select(b => b.SeatId).Distinct().Count();
                 var occupancy = totalSeats > 0 ? (int)Math.Round((double)activeThatDay / totalSeats * 100) : 0;
@@ -120,12 +120,12 @@ namespace BMS.API.Modules.Owner.Services
             dto.PaymentMethodSplit.Add(new PaymentMethodSplitDto 
             { 
                 Name = "Online prepay", 
-                Value = paidBookings.Where(b => b.PaymentMethod == PaymentMethod.OnlinePrepay).Sum(b => b.Price) 
+                Value = paidBookings.Count(b => b.PaymentMethod == PaymentMethod.OnlinePrepay)
             });
             dto.PaymentMethodSplit.Add(new PaymentMethodSplitDto 
             { 
                 Name = "Pay at desk", 
-                Value = paidBookings.Where(b => b.PaymentMethod == PaymentMethod.PayAtLibrary).Sum(b => b.Price) 
+                Value = paidBookings.Count(b => b.PaymentMethod == PaymentMethod.PayAtLibrary)
             });
 
             var planGroups = bookings.GroupBy(b => b.Plan != null ? b.Plan.Duration.ToString() : "unknown");

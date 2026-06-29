@@ -31,6 +31,7 @@ namespace BMS.API.Modules.Shared.Models
         public DateTime CreatedAt { get; set; }
         public bool ConfirmedArrival { get; set; }
         public bool IsDeactivated { get; set; } = false;
+        public bool ExpiryNotificationSent { get; set; } = false;
         
         // Navigation properties
         public Library Library { get; set; }

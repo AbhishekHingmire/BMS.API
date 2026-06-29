@@ -46,10 +46,12 @@ namespace BMS.API.Modules.Owner.Services
     public class LibraryManagementService : ILibraryManagementService
     {
         private readonly ApplicationDbContext _context;
+        private readonly INotificationRuleEngine _ruleEngine;
 
-        public LibraryManagementService(ApplicationDbContext context)
+        public LibraryManagementService(ApplicationDbContext context, INotificationRuleEngine ruleEngine)
         {
             _context = context;
+            _ruleEngine = ruleEngine;
         }
 
         private LibraryResponseDto MapToLibraryResponseDto(Library l)
@@ -670,8 +672,11 @@ namespace BMS.API.Modules.Owner.Services
                 ConfirmedArrival = true // Walk-in is already arrived
             };
 
-            _context.Bookings.Add(booking);
+            await _context.Bookings.AddAsync(booking);
             await _context.SaveChangesAsync();
+
+            await _ruleEngine.ProcessBookingCreatedAsync(booking);
+
             return booking;
         }
 
@@ -705,11 +710,13 @@ namespace BMS.API.Modules.Owner.Services
             if (booking == null) return null;
 
             if (request.Status.HasValue) booking.Status = request.Status.Value;
+            bool becamePaid = false;
             if (request.PaymentStatus.HasValue)
             {
                 if (booking.PaymentStatus != PaymentStatus.Paid && request.PaymentStatus.Value == PaymentStatus.Paid)
                 {
                     booking.PaymentDate = DateTime.UtcNow;
+                    becamePaid = true;
                 }
                 booking.PaymentStatus = request.PaymentStatus.Value;
             }
@@ -724,6 +731,12 @@ namespace BMS.API.Modules.Owner.Services
             if (request.ConfirmedArrival.HasValue) booking.ConfirmedArrival = request.ConfirmedArrival.Value;
 
             await _context.SaveChangesAsync();
+            
+            if (becamePaid)
+            {
+                await _ruleEngine.ProcessBookingPaymentUpdatedAsync(booking);
+            }
+
             return booking;
         }
     }

@@ -17,10 +17,12 @@ namespace BMS.API.Modules.User.Controllers
     public class UserBookingsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly BMS.API.Modules.Owner.Services.INotificationRuleEngine _ruleEngine;
 
-        public UserBookingsController(ApplicationDbContext context)
+        public UserBookingsController(ApplicationDbContext context, BMS.API.Modules.Owner.Services.INotificationRuleEngine ruleEngine)
         {
             _context = context;
+            _ruleEngine = ruleEngine;
         }
 
         [HttpGet]
@@ -114,6 +116,8 @@ namespace BMS.API.Modules.User.Controllers
 
             _context.Bookings.Add(booking);
             await _context.SaveChangesAsync();
+
+            await _ruleEngine.ProcessBookingCreatedAsync(booking);
 
             return Ok(booking);
         }

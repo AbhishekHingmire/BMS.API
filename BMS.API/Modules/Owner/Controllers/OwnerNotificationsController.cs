@@ -99,5 +99,32 @@ namespace BMS.API.Modules.Owner.Controllers
             var broadcast = await _profileService.CreateBroadcastAsync(GetOwnerId(), request);
             return Ok(broadcast);
         }
+
+        [HttpGet("broadcast/estimate")]
+        public async Task<IActionResult> EstimateBroadcast([FromQuery] string libraryId, [FromQuery] string audience)
+        {
+            var count = await _profileService.GetAudienceCountAsync(GetOwnerId(), libraryId, audience);
+            return Ok(new { count });
+        }
+
+        [HttpPut("broadcast/{id}")]
+        public async Task<IActionResult> UpdateBroadcast(Guid id, [FromBody] BroadcastDto request)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var broadcast = await _profileService.UpdateBroadcastAsync(GetOwnerId(), id, request);
+            if (broadcast == null) return NotFound(new { message = "Broadcast not found" });
+
+            return Ok(broadcast);
+        }
+
+        [HttpDelete("broadcast/{id}")]
+        public async Task<IActionResult> DeleteBroadcast(Guid id)
+        {
+            var success = await _profileService.DeleteBroadcastAsync(GetOwnerId(), id);
+            if (!success) return NotFound(new { message = "Broadcast not found" });
+
+            return Ok(new { message = "Broadcast deleted" });
+        }
     }
 }

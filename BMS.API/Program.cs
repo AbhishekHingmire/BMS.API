@@ -28,6 +28,8 @@ builder.Services.AddScoped<IOwnerAuthService, OwnerAuthService>();
 builder.Services.AddScoped<ILibraryManagementService, LibraryManagementService>();
 builder.Services.AddScoped<IOwnerProfileService, OwnerProfileService>();
 builder.Services.AddScoped<IOwnerAnalyticsService, OwnerAnalyticsService>();
+builder.Services.AddSingleton<INotificationRuleEngine, NotificationRuleEngine>();
+builder.Services.AddHostedService<ExpiryNotificationService>();
 
 // User Services
 builder.Services.AddScoped<BMS.API.Modules.User.Services.UserAuthService>();

@@ -4,6 +4,7 @@ using BMS.API.Modules.Shared.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BMS.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260629164107_AddBroadcastIdToUserNotification")]
+    partial class AddBroadcastIdToUserNotification
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -96,10 +99,6 @@ namespace BMS.API.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("BodyTemplate")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("bit");
 
@@ -107,10 +106,6 @@ namespace BMS.API.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("RuleType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SubjectTemplate")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -238,9 +233,6 @@ namespace BMS.API.Migrations
 
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("datetime2");
-
-                    b.Property<bool>("ExpiryNotificationSent")
-                        .HasColumnType("bit");
 
                     b.Property<bool>("IsDeactivated")
                         .HasColumnType("bit");
