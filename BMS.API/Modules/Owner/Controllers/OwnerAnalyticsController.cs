@@ -100,8 +100,10 @@ namespace BMS.API.Modules.Owner.Controllers
                     b.EndDate.Date >= date &&
                     b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.Expired).ToList();
 
-                var dayOnline = dayBookings.Where(b => b.Source == BookingSource.Online && b.PaymentStatus == PaymentStatus.Paid).Sum(b => b.Price);
-                var dayOffline = dayBookings.Where(b => b.Source == BookingSource.Offline && b.PaymentStatus == PaymentStatus.Paid).Sum(b => b.Price);
+                var dayRevenueBookings = bookings.Where(b => b.CreatedAt.Date == date && (b.PaymentStatus == PaymentStatus.Paid || b.PaymentStatus == PaymentStatus.Refunded)).ToList();
+
+                var dayOnline = dayRevenueBookings.Where(b => b.Source == BookingSource.Online).Sum(b => b.Price - (b.RefundedAmount ?? 0m));
+                var dayOffline = dayRevenueBookings.Where(b => b.Source == BookingSource.Offline).Sum(b => b.Price - (b.RefundedAmount ?? 0m));
                 var dayOccupancy = (int)Math.Round((double)dayBookings.Count / totalSeats * 100);
 
                 dailyMetrics.Add(new
@@ -117,24 +119,26 @@ namespace BMS.API.Modules.Owner.Controllers
 
             // Seven Days Revenue
             var sevenDaysRevenue = bookings
-                .Where(b => b.PaymentStatus == PaymentStatus.Paid && b.CreatedAt.Date >= today.AddDays(-7))
-                .Sum(b => b.Price);
+                .Where(b => (b.PaymentStatus == PaymentStatus.Paid || b.PaymentStatus == PaymentStatus.Refunded) && b.CreatedAt.Date >= today.AddDays(-7))
+                .Sum(b => b.Price - (b.RefundedAmount ?? 0m));
 
             // Total Revenue (all time paid)
-            var revenueTotal = bookings.Where(b => b.PaymentStatus == PaymentStatus.Paid).Sum(b => b.Price);
+            var revenueTotal = bookings
+                .Where(b => b.PaymentStatus == PaymentStatus.Paid || b.PaymentStatus == PaymentStatus.Refunded)
+                .Sum(b => b.Price - (b.RefundedAmount ?? 0m));
 
             // Revenue By Shift
             var revenueByShift = bookings
-                .Where(b => b.PaymentStatus == PaymentStatus.Paid && b.Shift != null)
+                .Where(b => (b.PaymentStatus == PaymentStatus.Paid || b.PaymentStatus == PaymentStatus.Refunded) && b.Shift != null)
                 .GroupBy(b => b.Shift.Name)
-                .Select(g => new { name = g.Key, value = g.Sum(b => b.Price) })
+                .Select(g => new { name = g.Key, value = g.Sum(b => b.Price - (b.RefundedAmount ?? 0m)) })
                 .ToList();
 
             // Payment Method Split
             var paymentMethodSplit = new List<object>
             {
-                new { name = "Online prepay", value = bookings.Where(b => b.PaymentMethod == PaymentMethod.OnlinePrepay && b.PaymentStatus == PaymentStatus.Paid).Sum(b => b.Price) },
-                new { name = "Pay at desk", value = bookings.Where(b => b.PaymentMethod == PaymentMethod.PayAtLibrary && b.PaymentStatus == PaymentStatus.Paid).Sum(b => b.Price) }
+                new { name = "Online prepay", value = bookings.Where(b => b.PaymentMethod == PaymentMethod.OnlinePrepay && (b.PaymentStatus == PaymentStatus.Paid || b.PaymentStatus == PaymentStatus.Refunded)).Sum(b => b.Price - (b.RefundedAmount ?? 0m)) },
+                new { name = "Pay at desk", value = bookings.Where(b => b.PaymentMethod == PaymentMethod.PayAtLibrary && (b.PaymentStatus == PaymentStatus.Paid || b.PaymentStatus == PaymentStatus.Refunded)).Sum(b => b.Price - (b.RefundedAmount ?? 0m)) }
             };
 
             // Plan Popularity

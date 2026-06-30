@@ -52,14 +52,13 @@ namespace BMS.API.Modules.Owner.Controllers
             }
 
             var now = DateTime.UtcNow;
-            if (now < booking.StartDate || now > booking.EndDate || booking.Status != BookingStatus.PendingArrival)
+            if (now < booking.StartDate || now > booking.EndDate || booking.Status != BookingStatus.Active)
             {
                 return BadRequest(new { message = "Booking is inactive or expired." });
             }
 
             // Mark attendance or check-in
             booking.ConfirmedArrival = true;
-            booking.Status = BookingStatus.Active; // Update status to Active
             await _context.SaveChangesAsync();
 
             return Ok(new 

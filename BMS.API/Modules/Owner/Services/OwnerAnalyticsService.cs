@@ -30,13 +30,15 @@ namespace BMS.API.Modules.Owner.Services
             
             // Note: In a real app we'd aggregate in SQL. For simplicity and since we use in-memory EF often,
             // we will pull bookings for these libraries.
-            var bookings = await _context.Bookings
+            var allBookings = await _context.Bookings
                 .Include(b => b.Plan)
                 .Include(b => b.Shift)
                 .Include(b => b.Library)
                 .Include(b => b.User)
-                .Where(b => libraryIds.Contains(b.LibraryId) && b.Status != BookingStatus.Cancelled && !b.IsDeactivated)
+                .Where(b => libraryIds.Contains(b.LibraryId) && !b.IsDeactivated)
                 .ToListAsync();
+
+            var bookings = allBookings.Where(b => b.Status != BookingStatus.Cancelled).ToList();
 
             // Total seats across all requested libraries
             var totalSeats = await _context.Areas
@@ -49,8 +51,8 @@ namespace BMS.API.Modules.Owner.Services
 
             var dto = new OwnerAnalyticsDto();
             
-            var paidBookings = bookings.Where(b => b.PaymentStatus == PaymentStatus.Paid || b.PaymentStatus == PaymentStatus.Refunded).ToList();
-            var unpaidBookings = bookings.Where(b => b.PaymentStatus == PaymentStatus.Unpaid).ToList();
+            var paidBookings = allBookings.Where(b => b.PaymentStatus == PaymentStatus.Paid || b.PaymentStatus == PaymentStatus.Refunded).ToList();
+            var unpaidBookings = allBookings.Where(b => b.PaymentStatus == PaymentStatus.Unpaid).ToList();
 
             dto.TotalBookingsCount = bookings.Count;
             dto.ActiveBookingsCount = bookings.Count(b => b.StartDate <= today && b.EndDate >= today);
@@ -59,14 +61,13 @@ namespace BMS.API.Modules.Owner.Services
             var activeBookingsToday = bookings.Where(b => b.StartDate <= today && b.EndDate >= today && b.Status != BookingStatus.Expired).ToList();
             
             dto.OccupiedNowCount = activeBookingsToday.Count(b => b.Shift != null && b.Shift.StartTime <= currentTime && b.Shift.EndTime >= currentTime);
-            dto.PendingArrivalCount = activeBookingsToday.Count(b => b.Status == BookingStatus.PendingArrival);
             
             var latestBookings = bookings
                 .GroupBy(b => b.UserId?.ToString() ?? (!string.IsNullOrEmpty(b.StudentContact) ? b.StudentContact : (b.StudentName ?? "unknown")))
                 .Select(g => g.OrderByDescending(x => x.EndDate).First())
                 .ToList();
 
-            var expiringBookings = latestBookings.Where(b => (b.Status == BookingStatus.Active || b.Status == BookingStatus.PendingArrival) && (b.EndDate - today).TotalDays >= -1 && (b.EndDate - today).TotalDays <= 7).ToList();
+            var expiringBookings = latestBookings.Where(b => (b.Status == BookingStatus.Active) && (b.EndDate - today).TotalDays >= -1 && (b.EndDate - today).TotalDays <= 7).ToList();
             
             Console.WriteLine($"[DEBUG] Total Latest Bookings: {latestBookings.Count}");
             foreach (var b in latestBookings)

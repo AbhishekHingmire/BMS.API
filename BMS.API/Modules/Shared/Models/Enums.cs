@@ -25,8 +25,7 @@ namespace BMS.API.Modules.Shared.Models
         Active,
         Expiring,
         Expired,
-        Cancelled,
-        PendingArrival
+        Cancelled
     }
 
     public enum BookingSource

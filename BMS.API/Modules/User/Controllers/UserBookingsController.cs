@@ -105,14 +105,14 @@ namespace BMS.API.Modules.User.Controllers
                 StudentContact = user.PhoneNumber,
                 StartDate = dto.StartDate,
                 EndDate = dto.EndDate,
-                Status = BookingStatus.PendingArrival,
+                Status = BookingStatus.Active,
                 Source = BookingSource.Online,
                 PaymentMethod = PaymentMethod.OnlinePrepay,
                 PaymentStatus = PaymentStatus.Paid,
                 PaymentDate = DateTime.UtcNow,
                 Price = dto.Price,
                 CreatedAt = DateTime.UtcNow,
-                ConfirmedArrival = false
+                ConfirmedArrival = true
             };
 
             _context.Bookings.Add(booking);

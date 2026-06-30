@@ -18,7 +18,6 @@ namespace BMS.API.Modules.Owner.DTOs
         public List<PlanPopularityDto> PlanPopularity { get; set; } = new();
 
         public int OccupiedNowCount { get; set; }
-        public int PendingArrivalCount { get; set; }
         public int ExpiringSoonCount { get; set; }
         public List<ExpiringMembershipDto> ExpiringMemberships { get; set; } = new();
     }

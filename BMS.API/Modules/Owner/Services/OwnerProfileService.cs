@@ -225,11 +225,11 @@ namespace BMS.API.Modules.Owner.Services
 
             if (audience == "active")
             {
-                latestBookings = latestBookings.Where(b => b.Status == BMS.API.Modules.Shared.Models.BookingStatus.Active || b.Status == BMS.API.Modules.Shared.Models.BookingStatus.PendingArrival).ToList();
+                latestBookings = latestBookings.Where(b => b.Status == BMS.API.Modules.Shared.Models.BookingStatus.Active).ToList();
             }
             else if (audience == "expiring")
             {
-                latestBookings = latestBookings.Where(b => (b.Status == BMS.API.Modules.Shared.Models.BookingStatus.Active || b.Status == BMS.API.Modules.Shared.Models.BookingStatus.PendingArrival) && (b.EndDate.Date - today).TotalDays >= 0 && (b.EndDate.Date - today).TotalDays <= 7).ToList();
+                latestBookings = latestBookings.Where(b => (b.Status == BMS.API.Modules.Shared.Models.BookingStatus.Active) && (b.EndDate.Date - today).TotalDays >= 0 && (b.EndDate.Date - today).TotalDays <= 7).ToList();
             }
             else if (audience == "expired")
             {
