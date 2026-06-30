@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace BMS.API.Modules.Shared.Models
 {
@@ -7,6 +8,7 @@ namespace BMS.API.Modules.Shared.Models
         public Guid Id { get; set; }
         public Guid AreaId { get; set; }
         
+        [MaxLength(50)]
         public string Number { get; set; }
         public GenderRestriction GenderRestriction { get; set; } = GenderRestriction.None;
         public decimal? PriceOverride { get; set; }

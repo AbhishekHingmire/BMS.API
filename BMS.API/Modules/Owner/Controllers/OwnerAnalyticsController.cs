@@ -73,12 +73,15 @@ namespace BMS.API.Modules.Owner.Controllers
             if (totalSeats == 0) totalSeats = 1; // Prevent division by zero
 
             // Calculate Active Bookings today
-            var activeBookings = bookings.Count(b => b.Status == BookingStatus.Active && 
-                                                b.StartDate.Date <= today &&
-                                                b.EndDate.Date >= today);
+            var activeBookingsList = bookings.Where(b => b.Status != BookingStatus.Cancelled && 
+                                                         b.Status != BookingStatus.Expired &&
+                                                         b.StartDate.Date <= today &&
+                                                         b.EndDate.Date >= today).ToList();
+            var activeBookings = activeBookingsList.Count;
+            var occupiedNowCount = activeBookingsList.Select(b => b.SeatId).Distinct().Count();
             
             // Occupancy Percent
-            var occupancyPercent = (int)Math.Round((double)activeBookings / totalSeats * 100);
+            var occupancyPercent = (int)Math.Round((double)occupiedNowCount / totalSeats * 100);
 
             // Pending Collections (pay-at-library and not paid)
             var pendingCollections = bookings.Where(b => b.PaymentStatus != PaymentStatus.Paid && b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.Expired).ToList();
@@ -146,7 +149,7 @@ namespace BMS.API.Modules.Owner.Controllers
                 sevenDaysRevenue = sevenDaysRevenue,
                 totalBookingsCount = bookings.Count,
                 activeBookingsCount = activeBookings,
-                occupiedNowCount = activeBookings, // mock for now
+                occupiedNowCount = occupiedNowCount,
                 pendingArrivalCount = 0, // mock
                 expiringSoonCount = 0, // mock
                 expiringMemberships = new List<object>(), // mock

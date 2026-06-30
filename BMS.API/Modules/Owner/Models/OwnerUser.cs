@@ -1,12 +1,20 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace BMS.API.Modules.Owner.Models
 {
     public class OwnerUser
     {
         public Guid Id { get; set; }
+        
+        [MaxLength(50)]
         public string Name { get; set; }
+        
+        [MaxLength(100)]
         public string Email { get; set; }
+        
+        [MaxLength(10)]
+        [RegularExpression(@"^\d{10}$", ErrorMessage = "Phone number must be exactly 10 digits.")]
         public string PhoneNumber { get; set; }
         
         public string PasswordHash { get; set; }

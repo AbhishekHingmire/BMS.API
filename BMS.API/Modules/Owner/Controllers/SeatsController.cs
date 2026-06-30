@@ -60,5 +60,14 @@ namespace BMS.API.Modules.Owner.Controllers
             
             return NoContent();
         }
+
+        [HttpPatch("{seatId}/toggle-restrict")]
+        public async Task<IActionResult> ToggleSeatRestriction(Guid areaId, Guid seatId)
+        {
+            var seat = await _libraryService.ToggleSeatRestrictionAsync(seatId);
+            if (seat == null) return NotFound("Seat not found.");
+            
+            return Ok(seat);
+        }
     }
 }

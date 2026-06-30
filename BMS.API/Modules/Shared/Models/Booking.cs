@@ -1,10 +1,13 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace BMS.API.Modules.Shared.Models
 {
     public class Booking
     {
         public Guid Id { get; set; }
+        
+        [MaxLength(20)]
         public string Code { get; set; }
         
         public Guid LibraryId { get; set; }
@@ -24,7 +27,11 @@ namespace BMS.API.Modules.Shared.Models
         public decimal Price { get; set; }
         public decimal? RefundedAmount { get; set; }
         
+        [MaxLength(50)]
         public string StudentName { get; set; }
+        
+        [MaxLength(10)]
+        [RegularExpression(@"^\d{10}$", ErrorMessage = "Contact number must be exactly 10 digits.")]
         public string StudentContact { get; set; }
         public Guid? UserId { get; set; } // Nullable if walk-in without system user
         

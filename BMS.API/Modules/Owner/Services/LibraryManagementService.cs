@@ -24,6 +24,7 @@ namespace BMS.API.Modules.Owner.Services
 
         Task<Seat> AddSeatAsync(Guid areaId, SeatCreateDto request);
         Task<Seat> UpdateSeatAsync(Guid seatId, SeatCreateDto request);
+        Task<Seat> ToggleSeatRestrictionAsync(Guid seatId);
         Task<bool> DeleteSeatAsync(Guid seatId);
         Task<IEnumerable<Seat>> GetSeatsAsync(Guid areaId);
         
@@ -533,6 +534,16 @@ namespace BMS.API.Modules.Owner.Services
             seat.GenderRestriction = request.GenderRestriction;
             seat.PriceOverride = request.PriceOverride;
 
+            await _context.SaveChangesAsync();
+            return seat;
+        }
+
+        public async Task<Seat> ToggleSeatRestrictionAsync(Guid seatId)
+        {
+            var seat = await _context.Seats.FindAsync(seatId);
+            if (seat == null) return null;
+
+            seat.IsInactive = !seat.IsInactive;
             await _context.SaveChangesAsync();
             return seat;
         }

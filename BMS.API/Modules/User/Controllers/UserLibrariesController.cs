@@ -5,6 +5,7 @@ using BMS.API.Modules.Shared.Data;
 using BMS.API.Modules.Shared.Models;
 using System.Linq;
 using System;
+using System.Security.Claims;
 
 namespace BMS.API.Modules.User.Controllers
 {
@@ -235,6 +236,30 @@ namespace BMS.API.Modules.User.Controllers
             return Ok(bookings);
         }
 
+        [HttpGet("~/api/user/reviews")]
+        public async Task<IActionResult> GetUserReviews()
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+            var reviews = await _context.Reviews
+                .Include(r => r.Library)
+                .Where(r => r.UserId == userId)
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new
+                {
+                    id = r.Id,
+                    libraryId = r.LibraryId,
+                    libraryName = r.Library.Name,
+                    rating = r.Rating,
+                    comment = r.Comment,
+                    createdAt = r.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(reviews);
+        }
+
         private object MapToFrontendDto(BMS.API.Modules.Shared.Models.Library l, int totalSeats = 0, int occupiedSeats = 0, double averageRating = 0.0, int totalReviews = 0)
         {
             return new
@@ -273,11 +298,13 @@ namespace BMS.API.Modules.User.Controllers
                     name = a.Name,
                     tags = string.IsNullOrEmpty(a.TagsString) ? new string[0] : a.TagsString.Split(','),
                     priceModifier = a.PriceModifierType.HasValue ? new { type = a.PriceModifierType.Value.ToString().ToLower(), value = a.PriceModifierValue } : null,
+                    floorPlan = string.IsNullOrEmpty(a.FloorPlanJson) ? null : System.Text.Json.JsonSerializer.Deserialize<object>(a.FloorPlanJson),
                     seats = a.Seats.Select(s => new {
                         id = s.Id,
                         number = s.Number,
                         genderRestriction = s.GenderRestriction == 0 ? null : s.GenderRestriction.ToString().ToLower(),
-                        priceOverride = s.PriceOverride
+                        priceOverride = s.PriceOverride,
+                        inactive = s.IsInactive
                     })
                 }),
                 totalSeats = totalSeats,

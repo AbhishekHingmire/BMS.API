@@ -16,7 +16,8 @@ namespace BMS.API.Modules.User.Models
         [MaxLength(150)]
         public string Email { get; set; } = string.Empty;
         
-        [MaxLength(20)]
+        [MaxLength(10)]
+        [RegularExpression(@"^\d{10}$", ErrorMessage = "Phone number must be exactly 10 digits.")]
         public string PhoneNumber { get; set; } = string.Empty;
         
         [Required]

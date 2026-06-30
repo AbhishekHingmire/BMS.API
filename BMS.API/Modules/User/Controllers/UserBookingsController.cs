@@ -62,6 +62,7 @@ namespace BMS.API.Modules.User.Controllers
                     status = b.Status.ToString().ToLower(),
                     paymentStatus = b.PaymentStatus.ToString().ToLower(),
                     price = b.Price,
+                    refundedAmount = b.RefundedAmount,
                     createdAt = b.CreatedAt
                 })
                 .ToListAsync();

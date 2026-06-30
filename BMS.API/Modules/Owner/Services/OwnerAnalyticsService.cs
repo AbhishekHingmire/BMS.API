@@ -49,7 +49,7 @@ namespace BMS.API.Modules.Owner.Services
 
             var dto = new OwnerAnalyticsDto();
             
-            var paidBookings = bookings.Where(b => b.PaymentStatus == PaymentStatus.Paid).ToList();
+            var paidBookings = bookings.Where(b => b.PaymentStatus == PaymentStatus.Paid || b.PaymentStatus == PaymentStatus.Refunded).ToList();
             var unpaidBookings = bookings.Where(b => b.PaymentStatus == PaymentStatus.Unpaid).ToList();
 
             dto.TotalBookingsCount = bookings.Count;

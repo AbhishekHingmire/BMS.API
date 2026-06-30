@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace BMS.API.Modules.Shared.Models
 {
@@ -7,10 +8,20 @@ namespace BMS.API.Modules.Shared.Models
     {
         public Guid Id { get; set; }
         public Guid OwnerId { get; set; }
+        
+        [MaxLength(100)]
         public string Name { get; set; }
+        
+        [MaxLength(1000)]
         public string Description { get; set; }
+        
+        [MaxLength(200)]
         public string Address { get; set; }
+        
+        [MaxLength(50)]
         public string AreaName { get; set; } // Area/locality name
+        
+        [MaxLength(50)]
         public string City { get; set; }
         public string AmenitiesString { get; set; } // Comma separated or JSON
         public string PhotosJson { get; set; } // JSON array of photo URLs

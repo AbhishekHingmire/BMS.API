@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace BMS.API.Modules.Shared.Models
 {
@@ -14,6 +15,7 @@ namespace BMS.API.Modules.Shared.Models
         public decimal? DiscountPercent { get; set; }
         public decimal? DiscountFlat { get; set; }
         
+        [MaxLength(50)]
         public string Name { get; set; }
         public bool IsEnabled { get; set; } = true;
         public string DaysOfWeekString { get; set; } // e.g. "1,2,3,4,5"
