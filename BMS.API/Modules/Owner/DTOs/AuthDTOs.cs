@@ -9,12 +9,13 @@ namespace BMS.API.Modules.Owner.DTOs
         [StringLength(100, MinimumLength = 2)]
         public string Name { get; set; }
 
+        // Email required for owner registration (used as backup/business contact)
         [Required]
         [EmailAddress]
         public string Email { get; set; }
 
         [Required]
-        [Phone]
+        [RegularExpression(@"^\d{10}$", ErrorMessage = "Phone number must be exactly 10 digits.")]
         public string PhoneNumber { get; set; }
 
         [Required]
@@ -27,9 +28,10 @@ namespace BMS.API.Modules.Owner.DTOs
 
     public class OwnerLoginRequestDto
     {
+        // Owner logs in via phone number
         [Required]
-        [EmailAddress]
-        public string Email { get; set; }
+        [RegularExpression(@"^\d{10}$", ErrorMessage = "Phone number must be exactly 10 digits.")]
+        public string PhoneNumber { get; set; }
 
         [Required]
         public string Password { get; set; }

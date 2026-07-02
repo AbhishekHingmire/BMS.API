@@ -24,19 +24,21 @@ namespace BMS.API.Modules.User.Services
 
         public async Task<UserAuthResponseDto> RegisterAsync(UserRegisterDto dto)
         {
-            if (await _context.EndUsers.AnyAsync(u => u.Email == dto.Email))
+            // Check phone uniqueness (phone is now the primary identifier)
+            if (await _context.EndUsers.AnyAsync(u => u.PhoneNumber == dto.PhoneNumber))
             {
-                throw new Exception("Email is already registered.");
+                throw new Exception("This phone number is already registered.");
             }
 
             var user = new EndUser
             {
                 Id = Guid.NewGuid(),
                 Name = dto.Name,
-                Email = dto.Email,
+                Email = null, // Email is no longer collected
                 PhoneNumber = dto.PhoneNumber,
                 City = dto.City,
                 Locality = dto.Locality,
+                Occupation = dto.Occupation,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -57,7 +59,8 @@ namespace BMS.API.Modules.User.Services
 
         public async Task<UserAuthResponseDto> LoginAsync(UserLoginDto dto)
         {
-            var user = await _context.EndUsers.FirstOrDefaultAsync(u => u.Email == dto.Email);
+            // Login via phone number
+            var user = await _context.EndUsers.FirstOrDefaultAsync(u => u.PhoneNumber == dto.PhoneNumber);
             if (user == null)
             {
                 throw new Exception("Invalid credentials.");

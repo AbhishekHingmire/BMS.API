@@ -28,7 +28,8 @@ namespace BMS.API.Modules.Owner.Services
 
         public async Task<AuthResponseDto> LoginAsync(OwnerLoginRequestDto request)
         {
-            var user = await _context.OwnerUsers.FirstOrDefaultAsync(u => u.Email == request.Email);
+            // Login via phone number
+            var user = await _context.OwnerUsers.FirstOrDefaultAsync(u => u.PhoneNumber == request.PhoneNumber);
             if (user == null)
             {
                 return new AuthResponseDto { Message = "Invalid credentials." };
@@ -58,8 +59,14 @@ namespace BMS.API.Modules.Owner.Services
 
         public async Task<AuthResponseDto> RegisterAsync(OwnerRegisterRequestDto request)
         {
-            var existingUser = await _context.OwnerUsers.AnyAsync(u => u.Email == request.Email);
-            if (existingUser)
+            // Check phone uniqueness
+            if (await _context.OwnerUsers.AnyAsync(u => u.PhoneNumber == request.PhoneNumber))
+            {
+                return new AuthResponseDto { Message = "This phone number is already registered." };
+            }
+
+            // Check email uniqueness
+            if (await _context.OwnerUsers.AnyAsync(u => u.Email == request.Email))
             {
                 return new AuthResponseDto { Message = "Email is already registered." };
             }
