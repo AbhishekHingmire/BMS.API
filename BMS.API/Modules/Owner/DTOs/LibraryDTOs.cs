@@ -35,11 +35,12 @@ namespace BMS.API.Modules.Owner.DTOs
         public System.Collections.Generic.List<AreaCreateDto> Areas { get; set; } = new();
         public System.Collections.Generic.List<ShiftCreateDto> Shifts { get; set; } = new();
         public System.Collections.Generic.List<PlanCreateDto> Plans { get; set; } = new();
+        
+        public bool IsPublished { get; set; }
     }
 
     public class LibraryUpdateDto : LibraryCreateDto
     {
-        public bool IsPublished { get; set; }
     }
     
     public class AreaCreateDto

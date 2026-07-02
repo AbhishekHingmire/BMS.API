@@ -126,7 +126,7 @@ namespace BMS.API.Modules.Owner.Services
                 CancellationPolicy = request.CancellationPolicy ?? "",
                 FaqJson = "[]",
                 IsVerified = true,
-                IsPublished = false
+                IsPublished = request.IsPublished
             };
 
             _context.Libraries.Add(library);
