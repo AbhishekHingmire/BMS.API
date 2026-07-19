@@ -1,4 +1,5 @@
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using BMS.API.Modules.Owner.Services;
 using BMS.API.Modules.Shared.Models;
@@ -19,10 +20,14 @@ namespace BMS.API.Modules.Owner.Controllers
             _libraryService = libraryService;
         }
 
+        private Guid GetOwnerId() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new UnauthorizedAccessException());
+
         [HttpPost]
         public async Task<IActionResult> AddShift(Guid libraryId, [FromBody] ShiftTemplate request)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!await _libraryService.IsLibraryOwnedByAsync(libraryId, GetOwnerId())) return NotFound();
+
             try
             {
                 var shift = await _libraryService.AddShiftAsync(libraryId, request);
@@ -37,6 +42,8 @@ namespace BMS.API.Modules.Owner.Controllers
         [HttpGet]
         public async Task<IActionResult> GetShifts(Guid libraryId)
         {
+            if (!await _libraryService.IsLibraryOwnedByAsync(libraryId, GetOwnerId())) return NotFound();
+
             var shifts = await _libraryService.GetShiftsAsync(libraryId);
             return Ok(shifts);
         }
@@ -45,7 +52,8 @@ namespace BMS.API.Modules.Owner.Controllers
         public async Task<IActionResult> UpdateShift(Guid libraryId, Guid shiftId, [FromBody] ShiftTemplate request)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-            
+            if (!await _libraryService.IsShiftOwnedByAsync(shiftId, GetOwnerId())) return NotFound();
+
             var shift = await _libraryService.UpdateShiftAsync(shiftId, request);
             if (shift == null) return NotFound("Shift not found.");
             
@@ -55,6 +63,8 @@ namespace BMS.API.Modules.Owner.Controllers
         [HttpDelete("{shiftId}")]
         public async Task<IActionResult> DeleteShift(Guid libraryId, Guid shiftId)
         {
+            if (!await _libraryService.IsShiftOwnedByAsync(shiftId, GetOwnerId())) return NotFound();
+
             var success = await _libraryService.DeleteShiftAsync(shiftId);
             if (!success) return NotFound("Shift not found.");
             

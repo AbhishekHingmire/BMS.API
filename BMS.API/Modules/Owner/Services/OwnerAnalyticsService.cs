@@ -42,8 +42,8 @@ namespace BMS.API.Modules.Owner.Services
 
             // Total seats across all requested libraries
             var totalSeats = await _context.Areas
-                .Where(a => libraryIds.Contains(a.LibraryId))
-                .SelectMany(a => a.Seats)
+                .Where(a => libraryIds.Contains(a.LibraryId) && !a.IsDeleted)
+                .SelectMany(a => a.Seats.Where(s => !s.IsDeleted))
                 .CountAsync();
 
             var today = DateTime.UtcNow.Date;

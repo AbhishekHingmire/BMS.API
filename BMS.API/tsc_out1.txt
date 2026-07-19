@@ -1,0 +1,4 @@
+Need to install the following packages:
+tsc@2.0.4
+Ok to proceed? (y) npm error canceled
+npm error A complete log of this run can be found in: C:\Users\Abhishek.Hingmire\AppData\Local\npm-cache\_logs\2026-07-19T09_02_05_021Z-debug-0.log

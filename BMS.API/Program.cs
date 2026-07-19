@@ -2,7 +2,9 @@ using System.Text;
 using BMS.API.Modules.Owner.Services;
 using BMS.API.Modules.Shared.Data;
 using BMS.API.Modules.Shared.Middlewares;
+using BMS.API.Modules.Shared.Options;
 using BMS.API.Modules.Shared.Security;
+using BMS.API.Modules.Shared.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -30,9 +32,14 @@ builder.Services.AddScoped<IOwnerProfileService, OwnerProfileService>();
 builder.Services.AddScoped<IOwnerAnalyticsService, OwnerAnalyticsService>();
 builder.Services.AddSingleton<INotificationRuleEngine, NotificationRuleEngine>();
 builder.Services.AddHostedService<ExpiryNotificationService>();
+builder.Services.AddHostedService<StalePendingPaymentCleanupService>();
 
 // User Services
 builder.Services.AddScoped<BMS.API.Modules.User.Services.UserAuthService>();
+
+// Payments (Cashfree)
+builder.Services.Configure<CashfreeOptions>(builder.Configuration.GetSection("Cashfree"));
+builder.Services.AddHttpClient<ICashfreeService, CashfreeService>();
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");

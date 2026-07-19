@@ -6,6 +6,7 @@ using BMS.API.Modules.Shared.Models;
 using BMS.API.Modules.User.DTOs;
 using System.Linq;
 using System;
+using System.Linq.Expressions;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 
@@ -25,49 +26,80 @@ namespace BMS.API.Modules.User.Controllers
             _ruleEngine = ruleEngine;
         }
 
+        /// <summary>
+        /// Shared projection to the flattened, student-facing booking shape. Used by both the
+        /// full-list endpoint and the single-booking-by-id endpoint so the two never drift.
+        /// </summary>
+        private static readonly Expression<Func<Booking, UserBookingSummaryDto>> ToSummaryDto = b => new UserBookingSummaryDto
+        {
+            Id = b.Id,
+            Code = b.Code,
+            LibraryId = b.LibraryId,
+            LibraryName = b.Library.Name,
+            LibraryCity = b.Library.City,
+            LibraryArea = b.Library.AreaName,
+            AreaId = b.AreaId,
+            AreaName = b.Area.Name,
+            SeatId = b.SeatId,
+            SeatName = b.Seat.Number,
+            PlanId = b.PlanId,
+            PlanName = b.Plan.Name,
+            PlanDuration = b.Plan.Duration.ToString().ToLower(),
+            ShiftId = b.ShiftId,
+            ShiftName = b.Shift.Name,
+            ShiftStartTime = b.Shift.StartTime,
+            ShiftEndTime = b.Shift.EndTime,
+            StartDate = b.StartDate.ToString("yyyy-MM-dd"),
+            EndDate = b.EndDate.ToString("yyyy-MM-dd"),
+            Status = b.Status.ToString().ToLower(),
+            PaymentStatus = b.PaymentStatus.ToString().ToLower(),
+            Price = b.Price,
+            RefundedAmount = b.RefundedAmount,
+            CreatedAt = b.CreatedAt
+        };
+
+        private IQueryable<Booking> BookingsWithIncludes() =>
+            _context.Bookings
+                .Include(b => b.Library)
+                .Include(b => b.Area)
+                .Include(b => b.Seat)
+                .Include(b => b.Plan)
+                .Include(b => b.Shift);
+
         [HttpGet]
         public async Task<IActionResult> GetMyBookings()
         {
             var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-            var bookings = await _context.Bookings
-                .Include(b => b.Library)
-                .Include(b => b.Area)
-                .Include(b => b.Seat)
-                .Include(b => b.Plan)
-                .Include(b => b.Shift)
+            var bookings = await BookingsWithIncludes()
                 .Where(b => b.UserId == userId)
                 .OrderByDescending(b => b.CreatedAt)
-                .Select(b => new
-                {
-                    id = b.Id,
-                    code = b.Code,
-                    libraryId = b.LibraryId,
-                    libraryName = b.Library.Name,
-                    libraryCity = b.Library.City,
-                    libraryArea = b.Library.AreaName,
-                    areaId = b.AreaId,
-                    areaName = b.Area.Name,
-                    seatId = b.SeatId,
-                    seatName = b.Seat.Number,
-                    planId = b.PlanId,
-                    planName = b.Plan.Name,
-                    shiftId = b.ShiftId,
-                    shiftName = b.Shift.Name,
-                    shiftStartTime = b.Shift.StartTime,
-                    shiftEndTime = b.Shift.EndTime,
-                    startDate = b.StartDate.ToString("yyyy-MM-dd"),
-                    endDate = b.EndDate.ToString("yyyy-MM-dd"),
-                    status = b.Status.ToString().ToLower(),
-                    paymentStatus = b.PaymentStatus.ToString().ToLower(),
-                    price = b.Price,
-                    refundedAmount = b.RefundedAmount,
-                    createdAt = b.CreatedAt
-                })
+                .Select(ToSummaryDto)
                 .ToListAsync();
 
             return Ok(bookings);
+        }
+
+        /// <summary>
+        /// Fetches a single booking by id, scoped to the authenticated student. Lets pages that
+        /// only need one booking (confirmation, membership card) avoid fetching the student's
+        /// entire booking history just to find one by id.
+        /// </summary>
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetBookingById(Guid id)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+            var booking = await BookingsWithIncludes()
+                .Where(b => b.Id == id && b.UserId == userId)
+                .Select(ToSummaryDto)
+                .FirstOrDefaultAsync();
+
+            if (booking == null) return NotFound();
+
+            return Ok(booking);
         }
 
         [HttpPost]
@@ -79,49 +111,120 @@ namespace BMS.API.Modules.User.Controllers
             var user = await _context.EndUsers.FindAsync(userId);
             if (user == null) return Unauthorized();
 
-            // Verify availability
-            var isConflict = await _context.Bookings.AnyAsync(b =>
-                b.SeatId == dto.SeatId &&
-                b.Status != BookingStatus.Cancelled &&
-                b.StartDate < dto.EndDate &&
-                b.EndDate > dto.StartDate);
-
-            if (isConflict)
+            var plan = await _context.Plans.FirstOrDefaultAsync(p =>
+                p.Id == dto.PlanId && p.LibraryId == dto.LibraryId && !p.IsDeleted);
+            if (plan == null || !plan.IsEnabled)
             {
-                return BadRequest(new { message = "The selected seat is no longer available for these dates." });
+                return BadRequest(new { message = "This plan is no longer available. Please choose another plan." });
             }
 
-            var booking = new Booking
+            var area = await _context.Areas.FirstOrDefaultAsync(a => a.Id == dto.AreaId && a.LibraryId == dto.LibraryId);
+            if (area == null)
             {
-                Id = Guid.NewGuid(),
-                Code = $"BK-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}",
-                LibraryId = dto.LibraryId,
-                AreaId = dto.AreaId,
-                SeatId = dto.SeatId,
-                PlanId = dto.PlanId,
-                ShiftId = dto.ShiftId,
-                UserId = userId,
-                StudentName = user.Name,
-                StudentContact = user.PhoneNumber,
-                StartDate = dto.StartDate,
-                EndDate = dto.EndDate,
-                Status = BookingStatus.Active,
-                Source = BookingSource.Online,
-                PaymentMethod = PaymentMethod.OnlinePrepay,
-                PaymentStatus = PaymentStatus.Paid,
-                PaymentDate = DateTime.UtcNow,
-                Price = dto.Price,
-                CreatedAt = DateTime.UtcNow,
-                ConfirmedArrival = true
-            };
+                return BadRequest(new { message = "This area could not be found for the selected library." });
+            }
 
-            _context.Bookings.Add(booking);
-            await _context.SaveChangesAsync();
+            var seat = await _context.Seats.FirstOrDefaultAsync(s => s.Id == dto.SeatId && s.AreaId == dto.AreaId);
+            if (seat == null || seat.IsInactive)
+            {
+                return BadRequest(new { message = "This seat is no longer available." });
+            }
 
-            await _ruleEngine.ProcessBookingCreatedAsync(booking);
+            // Price is always derived on the server from the current plan/area/seat data -
+            // the client-supplied price is never trusted, so it cannot be tampered with
+            // via the network/devtools to pay less than the real price.
+            var price = ComputeSeatPrice(area, seat, plan);
 
-            return Ok(booking);
+            await using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+            try
+            {
+                // Verify availability - inside the transaction so the check and the insert
+                // are atomic and a concurrent booking on the same seat can't slip through.
+                var isConflict = await _context.Bookings.AnyAsync(b =>
+                    b.SeatId == dto.SeatId &&
+                    b.Status != BookingStatus.Cancelled &&
+                    b.StartDate < dto.EndDate &&
+                    b.EndDate > dto.StartDate);
+
+                if (isConflict)
+                {
+                    await transaction.RollbackAsync();
+                    return BadRequest(new { message = "The selected seat is no longer available for these dates." });
+                }
+
+                var booking = new Booking
+                {
+                    Id = Guid.NewGuid(),
+                    Code = $"BK-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}",
+                    LibraryId = dto.LibraryId,
+                    AreaId = dto.AreaId,
+                    SeatId = dto.SeatId,
+                    PlanId = dto.PlanId,
+                    ShiftId = dto.ShiftId,
+                    UserId = userId,
+                    StudentName = user.Name,
+                    StudentContact = user.PhoneNumber,
+                    StartDate = dto.StartDate,
+                    EndDate = dto.EndDate,
+                    Status = BookingStatus.Active,
+                    Source = BookingSource.Online,
+                    PaymentMethod = PaymentMethod.OnlinePrepay,
+                    // Payment isn't confirmed yet - the seat is reserved immediately (this whole
+                    // block runs inside the Serializable transaction above) but PaymentStatus only
+                    // flips to Paid once Cashfree confirms the payment, via the webhook
+                    // (CashfreeWebhookController) or the reconciliation fallback
+                    // (PaymentsController.GetStatus). See src/components/payment-gateway.tsx for
+                    // the matching frontend flow.
+                    PaymentStatus = PaymentStatus.Unpaid,
+                    PaymentDate = null,
+                    Price = price,
+                    CreatedAt = DateTime.UtcNow,
+                    ConfirmedArrival = true
+                };
+
+                _context.Bookings.Add(booking);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                await _ruleEngine.ProcessBookingCreatedAsync(booking);
+
+                return Ok(booking);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
+
+        /// <summary>
+        /// Mirrors the frontend's computeSeatPrice (src/lib/booking.ts) so the server is the
+        /// single source of truth for price: seat override wins outright; otherwise start from
+        /// the plan's base price, apply the area's price modifier, then the plan's discounts.
+        /// </summary>
+        private static decimal ComputeSeatPrice(Area area, Seat seat, Plan plan)
+        {
+            if (seat.PriceOverride.HasValue) return seat.PriceOverride.Value;
+
+            var price = plan.BasePrice;
+            if (area.PriceModifierType.HasValue && area.PriceModifierValue.HasValue)
+            {
+                if (area.PriceModifierType.Value == PriceModifierType.Flat)
+                    price += area.PriceModifierValue.Value;
+                else
+                    price *= 1 + (area.PriceModifierValue.Value / 100m);
+            }
+            if (plan.DiscountPercent.HasValue && plan.DiscountPercent.Value > 0)
+            {
+                price *= 1 - (plan.DiscountPercent.Value / 100m);
+            }
+            if (plan.DiscountFlat.HasValue && plan.DiscountFlat.Value > 0)
+            {
+                price = Math.Max(0, price - plan.DiscountFlat.Value);
+            }
+            return Math.Round(price, 0, MidpointRounding.AwayFromZero);
+        }
+
         [HttpPost("{id}/cancel")]
         public async Task<IActionResult> CancelBooking(Guid id)
         {

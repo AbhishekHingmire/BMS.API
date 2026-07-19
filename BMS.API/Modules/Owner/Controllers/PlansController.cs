@@ -1,4 +1,5 @@
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using BMS.API.Modules.Owner.Services;
 using BMS.API.Modules.Shared.Models;
@@ -19,10 +20,14 @@ namespace BMS.API.Modules.Owner.Controllers
             _libraryService = libraryService;
         }
 
+        private Guid GetOwnerId() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new UnauthorizedAccessException());
+
         [HttpPost]
         public async Task<IActionResult> AddPlan(Guid libraryId, [FromBody] Plan request)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!await _libraryService.IsLibraryOwnedByAsync(libraryId, GetOwnerId())) return NotFound();
+
             try
             {
                 var plan = await _libraryService.AddPlanAsync(libraryId, request);
@@ -37,6 +42,8 @@ namespace BMS.API.Modules.Owner.Controllers
         [HttpGet]
         public async Task<IActionResult> GetPlans(Guid libraryId)
         {
+            if (!await _libraryService.IsLibraryOwnedByAsync(libraryId, GetOwnerId())) return NotFound();
+
             var plans = await _libraryService.GetPlansAsync(libraryId);
             return Ok(plans);
         }
@@ -45,7 +52,8 @@ namespace BMS.API.Modules.Owner.Controllers
         public async Task<IActionResult> UpdatePlan(Guid libraryId, Guid planId, [FromBody] Plan request)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-            
+            if (!await _libraryService.IsPlanOwnedByAsync(planId, GetOwnerId())) return NotFound();
+
             var plan = await _libraryService.UpdatePlanAsync(planId, request);
             if (plan == null) return NotFound("Plan not found.");
             
@@ -55,6 +63,8 @@ namespace BMS.API.Modules.Owner.Controllers
         [HttpDelete("{planId}")]
         public async Task<IActionResult> DeletePlan(Guid libraryId, Guid planId)
         {
+            if (!await _libraryService.IsPlanOwnedByAsync(planId, GetOwnerId())) return NotFound();
+
             var success = await _libraryService.DeletePlanAsync(planId);
             if (!success) return NotFound("Plan not found.");
             

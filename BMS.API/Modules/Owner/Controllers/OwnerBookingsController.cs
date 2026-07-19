@@ -20,6 +20,8 @@ namespace BMS.API.Modules.Owner.Controllers
             _libraryService = libraryService;
         }
 
+        private Guid GetOwnerId() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new UnauthorizedAccessException());
+
         [HttpPost("walk-in")]
         public async Task<IActionResult> CreateWalkIn(Guid libraryId, [FromBody] WalkInBookingDto request)
         {
@@ -29,14 +31,24 @@ namespace BMS.API.Modules.Owner.Controllers
             {
                 return BadRequest(new { message = "Library ID in path does not match payload." });
             }
+            if (!await _libraryService.IsLibraryOwnedByAsync(libraryId, GetOwnerId())) return NotFound();
 
-            var booking = await _libraryService.CreateWalkInBookingAsync(request);
-            return Ok(booking);
+            try
+            {
+                var booking = await _libraryService.CreateWalkInBookingAsync(request);
+                return Ok(booking);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpGet]
         public async Task<IActionResult> GetBookings(Guid libraryId)
         {
+            if (!await _libraryService.IsLibraryOwnedByAsync(libraryId, GetOwnerId())) return NotFound();
+
             var bookings = await _libraryService.GetLibraryBookingsAsync(libraryId);
             return Ok(bookings);
         }
@@ -44,6 +56,9 @@ namespace BMS.API.Modules.Owner.Controllers
         [HttpPut("{bookingId}")]
         public async Task<IActionResult> UpdateBooking(Guid libraryId, Guid bookingId, [FromBody] UpdateBookingDto request)
         {
+            if (!await _libraryService.IsLibraryOwnedByAsync(libraryId, GetOwnerId())) return NotFound();
+            if (!await _libraryService.IsBookingOwnedByAsync(bookingId, GetOwnerId())) return NotFound();
+
             var booking = await _libraryService.UpdateBookingAsync(bookingId, request);
             if (booking == null) return NotFound("Booking not found.");
             
@@ -53,6 +68,8 @@ namespace BMS.API.Modules.Owner.Controllers
         [HttpPut("/api/owner/bookings/{bookingId}/deactivate")]
         public async Task<IActionResult> DeactivateBooking(Guid bookingId, [FromServices] BMS.API.Modules.Shared.Data.ApplicationDbContext context)
         {
+            if (!await _libraryService.IsBookingOwnedByAsync(bookingId, GetOwnerId())) return NotFound("Booking not found.");
+
             var booking = await context.Bookings.FindAsync(bookingId);
             if (booking == null) return NotFound("Booking not found.");
 
@@ -65,6 +82,8 @@ namespace BMS.API.Modules.Owner.Controllers
         [HttpPut("/api/owner/bookings/{bookingId}/reactivate")]
         public async Task<IActionResult> ReactivateBooking(Guid bookingId, [FromServices] BMS.API.Modules.Shared.Data.ApplicationDbContext context)
         {
+            if (!await _libraryService.IsBookingOwnedByAsync(bookingId, GetOwnerId())) return NotFound("Booking not found.");
+
             var booking = await context.Bookings.FindAsync(bookingId);
             if (booking == null) return NotFound("Booking not found.");
 

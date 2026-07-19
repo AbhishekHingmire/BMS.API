@@ -60,10 +60,23 @@ namespace BMS.API.Modules.Owner.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteLibrary(Guid id)
+        public async Task<IActionResult> DeleteLibrary(Guid id, [FromQuery] bool force = false)
         {
             var existing = await _libraryService.GetLibraryByIdAsync(id);
             if (existing == null || existing.OwnerId != GetOwnerId()) return NotFound();
+
+            if (!force)
+            {
+                var activeCount = await _libraryService.CountActiveBookingsAsync(id);
+                if (activeCount > 0)
+                {
+                    return Conflict(new
+                    {
+                        message = $"This library has {activeCount} active/upcoming booking(s). Pass force=true to delete anyway.",
+                        activeBookingCount = activeCount
+                    });
+                }
+            }
 
             var result = await _libraryService.DeleteLibraryAsync(id);
             if (!result) return StatusCode(500, "Failed to delete library");

@@ -32,6 +32,8 @@ namespace BMS.API.Modules.Owner.DTOs
         [StringLength(2000)]
         public string? CancellationPolicy { get; set; }
 
+        public string? FaqJson { get; set; }
+
         public System.Collections.Generic.List<AreaCreateDto> Areas { get; set; } = new();
         public System.Collections.Generic.List<ShiftCreateDto> Shifts { get; set; } = new();
         public System.Collections.Generic.List<PlanCreateDto> Plans { get; set; } = new();
@@ -180,6 +182,12 @@ namespace BMS.API.Modules.Owner.DTOs
         public bool Verified { get; set; }
         public bool Published { get; set; }
         public string CancellationPolicy { get; set; }
+        public string FaqJson { get; set; } = "[]";
+
+        // Set when the server force-unpublished the library as a result of this update
+        // (e.g. an area/seat/shift/plan deletion left it without any bookable seats,
+        // shifts, or enabled plans). The owner UI surfaces this as a warning toast.
+        public string? AutoUnpublishedReason { get; set; }
         
         public List<ShiftResponseDto> Shifts { get; set; } = new();
         public List<AreaResponseDto> Areas { get; set; } = new();

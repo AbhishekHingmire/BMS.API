@@ -24,10 +24,10 @@ namespace BMS.API.Modules.User.Controllers
         public async Task<IActionResult> GetAll()
         {
             var libraries = await _context.Libraries
-                .Include(l => l.Areas)
-                    .ThenInclude(a => a.Seats)
-                .Include(l => l.Shifts)
-                .Include(l => l.Plans)
+                .Include(l => l.Areas.Where(a => !a.IsDeleted))
+                    .ThenInclude(a => a.Seats.Where(s => !s.IsDeleted))
+                .Include(l => l.Shifts.Where(s => !s.IsDeleted))
+                .Include(l => l.Plans.Where(p => !p.IsDeleted))
                 .Include(l => l.Reviews)
                 .Where(l => l.IsVerified && l.IsPublished)
                 .ToListAsync();
@@ -95,10 +95,10 @@ namespace BMS.API.Modules.User.Controllers
         public async Task<IActionResult> GetById(Guid id)
         {
             var library = await _context.Libraries
-                .Include(l => l.Areas)
-                    .ThenInclude(a => a.Seats)
-                .Include(l => l.Shifts)
-                .Include(l => l.Plans)
+                .Include(l => l.Areas.Where(a => !a.IsDeleted))
+                    .ThenInclude(a => a.Seats.Where(s => !s.IsDeleted))
+                .Include(l => l.Shifts.Where(s => !s.IsDeleted))
+                .Include(l => l.Plans.Where(p => !p.IsDeleted))
                 .Include(l => l.Reviews)
                 .FirstOrDefaultAsync(l => l.Id == id);
 

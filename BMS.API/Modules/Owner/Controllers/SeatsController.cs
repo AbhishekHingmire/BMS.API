@@ -1,4 +1,5 @@
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using BMS.API.Modules.Owner.DTOs;
 using BMS.API.Modules.Owner.Services;
@@ -19,10 +20,14 @@ namespace BMS.API.Modules.Owner.Controllers
             _libraryService = libraryService;
         }
 
+        private Guid GetOwnerId() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new UnauthorizedAccessException());
+
         [HttpPost]
         public async Task<IActionResult> AddSeat(Guid areaId, [FromBody] SeatCreateDto request)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!await _libraryService.IsAreaOwnedByAsync(areaId, GetOwnerId())) return NotFound();
+
             try
             {
                 var seat = await _libraryService.AddSeatAsync(areaId, request);
@@ -37,6 +42,8 @@ namespace BMS.API.Modules.Owner.Controllers
         [HttpGet]
         public async Task<IActionResult> GetSeats(Guid areaId)
         {
+            if (!await _libraryService.IsAreaOwnedByAsync(areaId, GetOwnerId())) return NotFound();
+
             var seats = await _libraryService.GetSeatsAsync(areaId);
             return Ok(seats);
         }
@@ -45,7 +52,8 @@ namespace BMS.API.Modules.Owner.Controllers
         public async Task<IActionResult> UpdateSeat(Guid areaId, Guid seatId, [FromBody] SeatCreateDto request)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-            
+            if (!await _libraryService.IsSeatOwnedByAsync(seatId, GetOwnerId())) return NotFound();
+
             var seat = await _libraryService.UpdateSeatAsync(seatId, request);
             if (seat == null) return NotFound("Seat not found.");
             
@@ -55,6 +63,8 @@ namespace BMS.API.Modules.Owner.Controllers
         [HttpDelete("{seatId}")]
         public async Task<IActionResult> DeleteSeat(Guid areaId, Guid seatId)
         {
+            if (!await _libraryService.IsSeatOwnedByAsync(seatId, GetOwnerId())) return NotFound();
+
             var success = await _libraryService.DeleteSeatAsync(seatId);
             if (!success) return NotFound("Seat not found.");
             
@@ -64,6 +74,8 @@ namespace BMS.API.Modules.Owner.Controllers
         [HttpPatch("{seatId}/toggle-restrict")]
         public async Task<IActionResult> ToggleSeatRestriction(Guid areaId, Guid seatId)
         {
+            if (!await _libraryService.IsSeatOwnedByAsync(seatId, GetOwnerId())) return NotFound();
+
             var seat = await _libraryService.ToggleSeatRestrictionAsync(seatId);
             if (seat == null) return NotFound("Seat not found.");
             

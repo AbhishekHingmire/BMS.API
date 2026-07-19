@@ -42,6 +42,16 @@ namespace BMS.API.Modules.Owner.Services
         Task<Booking> UpdateBookingAsync(Guid bookingId, UpdateBookingDto request);
         Task<IEnumerable<Booking>> GetLibraryBookingsAsync(Guid libraryId);
         Task<Booking> GetBookingByCodeAsync(Guid ownerId, string code);
+
+        // Ownership / authorization helpers - used by controllers to enforce that an
+        // authenticated owner can only read/mutate resources under libraries they own.
+        Task<bool> IsLibraryOwnedByAsync(Guid libraryId, Guid ownerId);
+        Task<bool> IsAreaOwnedByAsync(Guid areaId, Guid ownerId);
+        Task<bool> IsSeatOwnedByAsync(Guid seatId, Guid ownerId);
+        Task<bool> IsPlanOwnedByAsync(Guid planId, Guid ownerId);
+        Task<bool> IsShiftOwnedByAsync(Guid shiftId, Guid ownerId);
+        Task<bool> IsBookingOwnedByAsync(Guid bookingId, Guid ownerId);
+        Task<int> CountActiveBookingsAsync(Guid libraryId);
     }
 
     public class LibraryManagementService : ILibraryManagementService
@@ -72,21 +82,22 @@ namespace BMS.API.Modules.Owner.Services
                 Verified = l.IsVerified,
                 Published = l.IsPublished,
                 CancellationPolicy = l.CancellationPolicy,
-                Shifts = l.Shifts.Select(s => new ShiftResponseDto
+                FaqJson = string.IsNullOrEmpty(l.FaqJson) ? "[]" : l.FaqJson,
+                Shifts = l.Shifts.Where(s => !s.IsDeleted).Select(s => new ShiftResponseDto
                 {
                     Id = s.Id,
                     Name = s.Name,
                     Start = s.StartTime.ToString(@"hh\:mm"),
                     End = s.EndTime.ToString(@"hh\:mm")
                 }).ToList(),
-                Areas = l.Areas.Select(a => new AreaResponseDto
+                Areas = l.Areas.Where(a => !a.IsDeleted).Select(a => new AreaResponseDto
                 {
                     Id = a.Id,
                     Name = a.Name,
                     Tags = string.IsNullOrEmpty(a.TagsString) ? new List<string>() : a.TagsString.Split(',').ToList(),
                     PriceModifier = a.PriceModifierType.HasValue ? new { type = a.PriceModifierType.Value.ToString().ToLower(), value = a.PriceModifierValue } : null,
                     FloorPlan = string.IsNullOrEmpty(a.FloorPlanJson) ? null : System.Text.Json.JsonSerializer.Deserialize<object>(a.FloorPlanJson),
-                    Seats = a.Seats.Select(st => new SeatResponseDto
+                    Seats = a.Seats.Where(st => !st.IsDeleted).Select(st => new SeatResponseDto
                     {
                         Id = st.Id,
                         Number = st.Number,
@@ -124,7 +135,7 @@ namespace BMS.API.Modules.Owner.Services
                 AmenitiesString = request.AmenitiesString ?? "",
                 PhotosJson = request.Photos != null ? System.Text.Json.JsonSerializer.Serialize(request.Photos) : "[]",
                 CancellationPolicy = request.CancellationPolicy ?? "",
-                FaqJson = "[]",
+                FaqJson = string.IsNullOrEmpty(request.FaqJson) ? "[]" : request.FaqJson,
                 IsVerified = true,
                 IsPublished = request.IsPublished
             };
@@ -240,15 +251,18 @@ namespace BMS.API.Modules.Owner.Services
             library.AmenitiesString = request.AmenitiesString;
             library.PhotosJson = request.Photos != null ? System.Text.Json.JsonSerializer.Serialize(request.Photos) : "[]";
             library.CancellationPolicy = request.CancellationPolicy;
+            library.FaqJson = string.IsNullOrEmpty(request.FaqJson) ? "[]" : request.FaqJson;
             library.IsPublished = request.IsPublished;
 
-            // Sync Shifts
-            var existingShifts = await _context.ShiftTemplates.Where(s => s.LibraryId == libraryId).ToListAsync();
+            // Sync Shifts. Shifts can be referenced by Bookings (FK on Bookings.ShiftId), so a
+            // shift that has ever been used can't be hard-deleted - it is soft-deleted instead
+            // and excluded from every read path.
+            var existingShifts = await _context.ShiftTemplates.Where(s => s.LibraryId == libraryId && !s.IsDeleted).ToListAsync();
             foreach (var existingShift in existingShifts)
             {
                 if (!request.Shifts.Any(s => s.Id == existingShift.Id))
                 {
-                    _context.ShiftTemplates.Remove(existingShift);
+                    existingShift.IsDeleted = true;
                 }
             }
             var shiftIdMapping = new Dictionary<Guid, Guid>();
@@ -280,13 +294,24 @@ namespace BMS.API.Modules.Owner.Services
                 }
             }
 
-            // Sync Areas and Seats
-            var existingAreas = await _context.Areas.Include(a => a.Seats).Where(a => a.LibraryId == libraryId).ToListAsync();
+            // Sync Areas and Seats. Seats (and their parent Areas) can be referenced by
+            // Bookings (FK on Bookings.SeatId/AreaId) even after the booking is cancelled or
+            // completed, so a hard delete would throw a DbUpdateException the moment the area
+            // or seat has ever been booked. Soft-delete instead so booking history stays intact
+            // and the row is simply excluded from every read path (owner UI, browse, booking).
+            var existingAreas = await _context.Areas
+                .Include(a => a.Seats.Where(s => !s.IsDeleted))
+                .Where(a => a.LibraryId == libraryId && !a.IsDeleted)
+                .ToListAsync();
             foreach (var existingArea in existingAreas)
             {
                 if (!request.Areas.Any(a => a.Id == existingArea.Id))
                 {
-                    _context.Areas.Remove(existingArea);
+                    existingArea.IsDeleted = true;
+                    foreach (var seat in existingArea.Seats)
+                    {
+                        seat.IsDeleted = true;
+                    }
                 }
             }
             foreach (var reqArea in request.Areas)
@@ -302,12 +327,12 @@ namespace BMS.API.Modules.Owner.Services
                     existing.PriceModifierValue = reqArea.PriceModifierValue;
                     existing.FloorPlanJson = reqArea.FloorPlanJson ?? "";
                     
-                    // Sync Seats
+                    // Sync Seats (soft-delete - see note above on Areas)
                     foreach (var existingSeat in existing.Seats.ToList())
                     {
                         if (!reqArea.Seats.Any(s => s.Id == existingSeat.Id))
                         {
-                            _context.Seats.Remove(existingSeat);
+                            existingSeat.IsDeleted = true;
                         }
                     }
                     foreach (var reqSeat in reqArea.Seats)
@@ -413,12 +438,37 @@ namespace BMS.API.Modules.Owner.Services
             await _context.SaveChangesAsync();
             
             var updatedLib = await _context.Libraries
-                .Include(l => l.Areas).ThenInclude(a => a.Seats)
-                .Include(l => l.Shifts)
+                .Include(l => l.Areas.Where(a => !a.IsDeleted)).ThenInclude(a => a.Seats.Where(s => !s.IsDeleted))
+                .Include(l => l.Shifts.Where(s => !s.IsDeleted))
                 .Include(l => l.Plans.Where(p => !p.IsDeleted))
                 .FirstOrDefaultAsync(l => l.Id == library.Id);
-                
-            return MapToLibraryResponseDto(updatedLib);
+
+            // Guard-rail: if this update removed the last seat, shift, or enabled plan, the
+            // library can no longer be booked - force it back to unpublished and surface why,
+            // rather than silently leaving a "live" listing students can't actually book.
+            string autoUnpublishedReason = null;
+            if (updatedLib.IsPublished)
+            {
+                var totalBookableSeats = updatedLib.Areas.Sum(a => a.Seats.Count(s => !s.IsInactive));
+                var hasShift = updatedLib.Shifts.Any();
+                var hasEnabledPlan = updatedLib.Plans.Any(p => p.IsEnabled);
+
+                if (totalBookableSeats == 0 || !hasShift || !hasEnabledPlan)
+                {
+                    var missing = new List<string>();
+                    if (totalBookableSeats == 0) missing.Add("no bookable seats");
+                    if (!hasShift) missing.Add("no shifts");
+                    if (!hasEnabledPlan) missing.Add("no enabled plans");
+
+                    updatedLib.IsPublished = false;
+                    autoUnpublishedReason = $"This library was automatically unpublished because it now has {string.Join(" and ", missing)}, so students can't book it. Add them back and re-publish when ready.";
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            var dto = MapToLibraryResponseDto(updatedLib);
+            dto.AutoUnpublishedReason = autoUnpublishedReason;
+            return dto;
         }
 
         public async Task<bool> DeleteLibraryAsync(Guid libraryId)
@@ -435,8 +485,8 @@ namespace BMS.API.Modules.Owner.Services
         {
             var libs = await _context.Libraries
                 .Where(l => l.OwnerId == ownerId)
-                .Include(l => l.Areas).ThenInclude(a => a.Seats)
-                .Include(l => l.Shifts)
+                .Include(l => l.Areas.Where(a => !a.IsDeleted)).ThenInclude(a => a.Seats.Where(s => !s.IsDeleted))
+                .Include(l => l.Shifts.Where(s => !s.IsDeleted))
                 .Include(l => l.Plans.Where(p => !p.IsDeleted))
                 .ToListAsync();
             return libs.Select(MapToLibraryResponseDto);
@@ -445,8 +495,8 @@ namespace BMS.API.Modules.Owner.Services
         public async Task<LibraryResponseDto> GetLibraryByIdAsync(Guid libraryId)
         {
             var lib = await _context.Libraries
-                .Include(l => l.Areas).ThenInclude(a => a.Seats)
-                .Include(l => l.Shifts)
+                .Include(l => l.Areas.Where(a => !a.IsDeleted)).ThenInclude(a => a.Seats.Where(s => !s.IsDeleted))
+                .Include(l => l.Shifts.Where(s => !s.IsDeleted))
                 .Include(l => l.Plans.Where(p => !p.IsDeleted))
                 .FirstOrDefaultAsync(l => l.Id == libraryId);
             return MapToLibraryResponseDto(lib);
@@ -490,10 +540,16 @@ namespace BMS.API.Modules.Owner.Services
 
         public async Task<bool> DeleteAreaAsync(Guid areaId)
         {
-            var area = await _context.Areas.FindAsync(areaId);
+            var area = await _context.Areas.Include(a => a.Seats).FirstOrDefaultAsync(a => a.Id == areaId);
             if (area == null) return false;
 
-            _context.Areas.Remove(area);
+            // Soft-delete (see note in UpdateLibraryAsync) - a hard delete throws a
+            // DbUpdateException if any seat in this area has ever been booked.
+            area.IsDeleted = true;
+            foreach (var seat in area.Seats)
+            {
+                seat.IsDeleted = true;
+            }
             await _context.SaveChangesAsync();
             return true;
         }
@@ -501,7 +557,7 @@ namespace BMS.API.Modules.Owner.Services
         public async Task<IEnumerable<Area>> GetAreasAsync(Guid libraryId)
         {
             return await _context.Areas
-                .Where(a => a.LibraryId == libraryId)
+                .Where(a => a.LibraryId == libraryId && !a.IsDeleted)
                 .ToListAsync();
         }
 
@@ -553,7 +609,9 @@ namespace BMS.API.Modules.Owner.Services
             var seat = await _context.Seats.FindAsync(seatId);
             if (seat == null) return false;
 
-            _context.Seats.Remove(seat);
+            // Soft-delete (see note in UpdateLibraryAsync) - a hard delete throws a
+            // DbUpdateException if this seat has ever been booked.
+            seat.IsDeleted = true;
             await _context.SaveChangesAsync();
             return true;
         }
@@ -561,7 +619,7 @@ namespace BMS.API.Modules.Owner.Services
         public async Task<IEnumerable<Seat>> GetSeatsAsync(Guid areaId)
         {
             return await _context.Seats
-                .Where(s => s.AreaId == areaId)
+                .Where(s => s.AreaId == areaId && !s.IsDeleted)
                 .ToListAsync();
         }
 
@@ -596,7 +654,9 @@ namespace BMS.API.Modules.Owner.Services
             var shift = await _context.ShiftTemplates.FindAsync(shiftId);
             if (shift == null) return false;
 
-            _context.ShiftTemplates.Remove(shift);
+            // Soft-delete (see note in UpdateLibraryAsync) - a hard delete throws a
+            // DbUpdateException if this shift has ever been booked.
+            shift.IsDeleted = true;
             await _context.SaveChangesAsync();
             return true;
         }
@@ -604,7 +664,7 @@ namespace BMS.API.Modules.Owner.Services
         public async Task<IEnumerable<ShiftTemplate>> GetShiftsAsync(Guid libraryId)
         {
             return await _context.ShiftTemplates
-                .Where(s => s.LibraryId == libraryId)
+                .Where(s => s.LibraryId == libraryId && !s.IsDeleted)
                 .ToListAsync();
         }
 
@@ -642,7 +702,9 @@ namespace BMS.API.Modules.Owner.Services
             var plan = await _context.Plans.FindAsync(planId);
             if (plan == null) return false;
 
-            _context.Plans.Remove(plan);
+            // Soft-delete (consistent with the sync path in UpdateLibraryAsync) - a hard
+            // delete throws a DbUpdateException if this plan has ever been booked.
+            plan.IsDeleted = true;
             await _context.SaveChangesAsync();
             return true;
         }
@@ -650,46 +712,68 @@ namespace BMS.API.Modules.Owner.Services
         public async Task<IEnumerable<Plan>> GetPlansAsync(Guid libraryId)
         {
             return await _context.Plans
-                .Where(p => p.LibraryId == libraryId)
+                .Where(p => p.LibraryId == libraryId && !p.IsDeleted)
                 .ToListAsync();
         }
 
         public async Task<Booking> CreateWalkInBookingAsync(WalkInBookingDto request)
         {
-            // Note: Add business validation to ensure the seat is not occupied in this shift and dates.
-            
             var existingUser = await _context.EndUsers.FirstOrDefaultAsync(u => u.PhoneNumber == request.StudentContact);
 
-            var booking = new Booking
+            // Guard against double-booking a seat: the availability check and the insert
+            // must be atomic, otherwise two concurrent walk-ins (or a walk-in racing an
+            // online booking) could both pass the check before either commits.
+            await using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+            try
             {
-                Id = Guid.NewGuid(),
-                Code = $"WI-{DateTime.UtcNow.Ticks.ToString().Substring(8)}",
-                LibraryId = request.LibraryId,
-                AreaId = request.AreaId,
-                SeatId = request.SeatId,
-                PlanId = request.PlanId,
-                ShiftId = request.ShiftId,
-                StartDate = request.StartDate,
-                EndDate = request.EndDate,
-                Status = BookingStatus.Active,
-                Source = BookingSource.Offline,
-                PaymentMethod = PaymentMethod.PayAtLibrary, // Usually walkins pay at library
-                PaymentStatus = request.PaymentStatus,
-                PaymentDate = request.PaymentStatus == PaymentStatus.Paid ? DateTime.UtcNow : null,
-                Price = request.Price,
-                StudentName = request.StudentName,
-                StudentContact = request.StudentContact,
-                UserId = existingUser?.Id,
-                CreatedAt = DateTime.UtcNow,
-                ConfirmedArrival = true // Walk-in is already arrived
-            };
+                var isConflict = await _context.Bookings.AnyAsync(b =>
+                    b.SeatId == request.SeatId &&
+                    b.Status != BookingStatus.Cancelled &&
+                    b.StartDate < request.EndDate &&
+                    b.EndDate > request.StartDate);
 
-            await _context.Bookings.AddAsync(booking);
-            await _context.SaveChangesAsync();
+                if (isConflict)
+                {
+                    throw new InvalidOperationException("The selected seat is already booked for these dates.");
+                }
 
-            await _ruleEngine.ProcessBookingCreatedAsync(booking);
+                var booking = new Booking
+                {
+                    Id = Guid.NewGuid(),
+                    Code = $"WI-{DateTime.UtcNow.Ticks.ToString().Substring(8)}",
+                    LibraryId = request.LibraryId,
+                    AreaId = request.AreaId,
+                    SeatId = request.SeatId,
+                    PlanId = request.PlanId,
+                    ShiftId = request.ShiftId,
+                    StartDate = request.StartDate,
+                    EndDate = request.EndDate,
+                    Status = BookingStatus.Active,
+                    Source = BookingSource.Offline,
+                    PaymentMethod = PaymentMethod.PayAtLibrary, // Usually walkins pay at library
+                    PaymentStatus = request.PaymentStatus,
+                    PaymentDate = request.PaymentStatus == PaymentStatus.Paid ? DateTime.UtcNow : null,
+                    Price = request.Price,
+                    StudentName = request.StudentName,
+                    StudentContact = request.StudentContact,
+                    UserId = existingUser?.Id,
+                    CreatedAt = DateTime.UtcNow,
+                    ConfirmedArrival = true // Walk-in is already arrived
+                };
 
-            return booking;
+                await _context.Bookings.AddAsync(booking);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                await _ruleEngine.ProcessBookingCreatedAsync(booking);
+
+                return booking;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<IEnumerable<Booking>> GetLibraryBookingsAsync(Guid libraryId)
@@ -734,8 +818,12 @@ namespace BMS.API.Modules.Owner.Services
             }
             if (request.RefundedAmount.HasValue)
             {
-                booking.RefundedAmount = request.RefundedAmount.Value;
-                if (request.RefundedAmount.Value > 0)
+                // Never trust the caller's refund figure blindly - clamp it to a sane range
+                // so a malformed/malicious request can't record a refund larger than what
+                // was actually paid, or a negative "refund".
+                var clampedRefund = Math.Max(0, Math.Min(request.RefundedAmount.Value, booking.Price));
+                booking.RefundedAmount = clampedRefund;
+                if (clampedRefund > 0)
                 {
                     booking.PaymentStatus = PaymentStatus.Refunded;
                 }
@@ -750,6 +838,33 @@ namespace BMS.API.Modules.Owner.Services
             }
 
             return booking;
+        }
+
+        public Task<bool> IsLibraryOwnedByAsync(Guid libraryId, Guid ownerId) =>
+            _context.Libraries.AnyAsync(l => l.Id == libraryId && l.OwnerId == ownerId);
+
+        public Task<bool> IsAreaOwnedByAsync(Guid areaId, Guid ownerId) =>
+            _context.Areas.AnyAsync(a => a.Id == areaId && a.Library.OwnerId == ownerId);
+
+        public Task<bool> IsSeatOwnedByAsync(Guid seatId, Guid ownerId) =>
+            _context.Seats.AnyAsync(s => s.Id == seatId && s.Area.Library.OwnerId == ownerId);
+
+        public Task<bool> IsPlanOwnedByAsync(Guid planId, Guid ownerId) =>
+            _context.Plans.AnyAsync(p => p.Id == planId && p.Library.OwnerId == ownerId);
+
+        public Task<bool> IsShiftOwnedByAsync(Guid shiftId, Guid ownerId) =>
+            _context.ShiftTemplates.AnyAsync(s => s.Id == shiftId && s.Library.OwnerId == ownerId);
+
+        public Task<bool> IsBookingOwnedByAsync(Guid bookingId, Guid ownerId) =>
+            _context.Bookings.AnyAsync(b => b.Id == bookingId && b.Library.OwnerId == ownerId);
+
+        public Task<int> CountActiveBookingsAsync(Guid libraryId)
+        {
+            var today = DateTime.UtcNow.Date;
+            return _context.Bookings.CountAsync(b =>
+                b.LibraryId == libraryId &&
+                b.Status != BookingStatus.Cancelled &&
+                b.EndDate >= today);
         }
     }
 }
