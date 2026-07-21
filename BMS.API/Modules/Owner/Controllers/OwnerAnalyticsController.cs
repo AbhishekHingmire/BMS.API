@@ -122,6 +122,11 @@ namespace BMS.API.Modules.Owner.Controllers
                 .Where(b => (b.PaymentStatus == PaymentStatus.Paid || b.PaymentStatus == PaymentStatus.Refunded) && b.CreatedAt.Date >= today.AddDays(-7))
                 .Sum(b => b.Price - (b.RefundedAmount ?? 0m));
 
+            // Today's Revenue (paid/refunded bookings actually created today, not the all-time total)
+            var todaysRevenue = bookings
+                .Where(b => (b.PaymentStatus == PaymentStatus.Paid || b.PaymentStatus == PaymentStatus.Refunded) && b.CreatedAt.Date == today)
+                .Sum(b => b.Price - (b.RefundedAmount ?? 0m));
+
             // Total Revenue (all time paid)
             var revenueTotal = bookings
                 .Where(b => b.PaymentStatus == PaymentStatus.Paid || b.PaymentStatus == PaymentStatus.Refunded)
@@ -149,7 +154,7 @@ namespace BMS.API.Modules.Owner.Controllers
 
             return Ok(new
             {
-                todaysRevenue = revenueTotal, // Add todaysRevenue
+                todaysRevenue,
                 sevenDaysRevenue = sevenDaysRevenue,
                 totalBookingsCount = bookings.Count,
                 activeBookingsCount = activeBookings,
