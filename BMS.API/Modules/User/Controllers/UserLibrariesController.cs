@@ -300,7 +300,7 @@ namespace BMS.API.Modules.User.Controllers
                     tags = string.IsNullOrEmpty(a.TagsString) ? new string[0] : a.TagsString.Split(','),
                     priceModifier = a.PriceModifierType.HasValue ? new { type = a.PriceModifierType.Value.ToString().ToLower(), value = a.PriceModifierValue } : null,
                     floorPlan = string.IsNullOrEmpty(a.FloorPlanJson) ? null : System.Text.Json.JsonSerializer.Deserialize<object>(a.FloorPlanJson),
-                    planOverrideIds = string.IsNullOrEmpty(a.PlanOverrideIdsJson) ? new Guid[0] : (System.Text.Json.JsonSerializer.Deserialize<List<Guid>>(a.PlanOverrideIdsJson) ?? new List<Guid>()),
+                    planOverrideIds = string.IsNullOrEmpty(a.PlanOverrideIdsJson) ? new List<Guid>() : (System.Text.Json.JsonSerializer.Deserialize<List<Guid>>(a.PlanOverrideIdsJson) ?? new List<Guid>()),
                     seats = a.Seats.Select(s => new {
                         id = s.Id,
                         number = s.Number,
