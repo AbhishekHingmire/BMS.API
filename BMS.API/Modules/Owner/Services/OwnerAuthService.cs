@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using BMS.API.Modules.Owner.DTOs;
 using BMS.API.Modules.Owner.Models;
@@ -52,7 +53,9 @@ namespace BMS.API.Modules.Owner.Services
                     Id = user.Id.ToString(),
                     Name = user.Name,
                     Email = user.Email,
-                    Role = user.Role.ToString()
+                    Role = user.Role.ToString(),
+                    Plan = user.Plan,
+                    PlanStartedAt = user.PlanStartedAt
                 }
             };
         }
@@ -71,6 +74,10 @@ namespace BMS.API.Modules.Owner.Services
                 return new AuthResponseDto { Message = "Email is already registered." };
             }
 
+            var allowedPlans = new[] { "free", "starter", "growth", "professional", "enterprise" };
+            var plan = (request.Plan ?? "free").ToLowerInvariant();
+            if (!allowedPlans.Contains(plan)) plan = "free";
+
             var user = new OwnerUser
             {
                 Id = Guid.NewGuid(),
@@ -84,7 +91,9 @@ namespace BMS.API.Modules.Owner.Services
                 BankName = "",
                 AccountNumber = "",
                 IfscCode = "",
-                UpiId = ""
+                UpiId = "",
+                Plan = plan,
+                PlanStartedAt = DateTime.UtcNow
             };
 
             _context.OwnerUsers.Add(user);
@@ -101,7 +110,9 @@ namespace BMS.API.Modules.Owner.Services
                     Id = user.Id.ToString(),
                     Name = user.Name,
                     Email = user.Email,
-                    Role = user.Role.ToString()
+                    Role = user.Role.ToString(),
+                    Plan = user.Plan,
+                    PlanStartedAt = user.PlanStartedAt
                 }
             };
         }

@@ -96,6 +96,7 @@ namespace BMS.API.Modules.Owner.Services
                     Name = a.Name,
                     Tags = string.IsNullOrEmpty(a.TagsString) ? new List<string>() : a.TagsString.Split(',').ToList(),
                     PriceModifier = a.PriceModifierType.HasValue ? new { type = a.PriceModifierType.Value.ToString().ToLower(), value = a.PriceModifierValue } : null,
+                    PlanOverrideIds = string.IsNullOrEmpty(a.PlanOverrideIdsJson) ? new List<Guid>() : (System.Text.Json.JsonSerializer.Deserialize<List<Guid>>(a.PlanOverrideIdsJson) ?? new List<Guid>()),
                     FloorPlan = string.IsNullOrEmpty(a.FloorPlanJson) ? null : System.Text.Json.JsonSerializer.Deserialize<object>(a.FloorPlanJson),
                     Seats = a.Seats.Where(st => !st.IsDeleted).Select(st => new SeatResponseDto
                     {
@@ -176,7 +177,8 @@ namespace BMS.API.Modules.Owner.Services
                     TagsString = aDto.TagsString,
                     PriceModifierType = aDto.PriceModifierType,
                     PriceModifierValue = aDto.PriceModifierValue,
-                    FloorPlanJson = aDto.FloorPlanJson ?? ""
+                    FloorPlanJson = aDto.FloorPlanJson ?? "",
+                    PlanOverrideIdsJson = aDto.PlanOverrideIdsJson ?? ""
                 };
                 _context.Areas.Add(area);
 
@@ -326,6 +328,7 @@ namespace BMS.API.Modules.Owner.Services
                     existing.PriceModifierType = reqArea.PriceModifierType;
                     existing.PriceModifierValue = reqArea.PriceModifierValue;
                     existing.FloorPlanJson = reqArea.FloorPlanJson ?? "";
+                    existing.PlanOverrideIdsJson = reqArea.PlanOverrideIdsJson ?? "";
                     
                     // Sync Seats (soft-delete - see note above on Areas)
                     foreach (var existingSeat in existing.Seats.ToList())
@@ -368,7 +371,8 @@ namespace BMS.API.Modules.Owner.Services
                         TagsString = reqArea.TagsString,
                         PriceModifierType = reqArea.PriceModifierType,
                         PriceModifierValue = reqArea.PriceModifierValue,
-                        FloorPlanJson = reqArea.FloorPlanJson ?? ""
+                        FloorPlanJson = reqArea.FloorPlanJson ?? "",
+                        PlanOverrideIdsJson = reqArea.PlanOverrideIdsJson ?? ""
                     };
                     _context.Areas.Add(newArea);
                     foreach (var reqSeat in reqArea.Seats)
@@ -515,7 +519,8 @@ namespace BMS.API.Modules.Owner.Services
                 TagsString = request.TagsString,
                 PriceModifierType = request.PriceModifierType,
                 PriceModifierValue = request.PriceModifierValue,
-                FloorPlanJson = request.FloorPlanJson
+                FloorPlanJson = request.FloorPlanJson,
+                PlanOverrideIdsJson = request.PlanOverrideIdsJson
             };
 
             _context.Areas.Add(area);
@@ -533,6 +538,7 @@ namespace BMS.API.Modules.Owner.Services
             area.PriceModifierType = request.PriceModifierType;
             area.PriceModifierValue = request.PriceModifierValue;
             area.FloorPlanJson = request.FloorPlanJson;
+            area.PlanOverrideIdsJson = request.PlanOverrideIdsJson;
 
             await _context.SaveChangesAsync();
             return area;

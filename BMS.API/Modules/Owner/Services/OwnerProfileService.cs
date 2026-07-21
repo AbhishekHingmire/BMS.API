@@ -35,7 +35,9 @@ namespace BMS.API.Modules.Owner.Services
                 IfscCode = user.IfscCode,
                 UpiId = user.UpiId,
                 EmailNotificationsEnabled = user.EmailNotificationsEnabled,
-                SmsNotificationsEnabled = user.SmsNotificationsEnabled
+                SmsNotificationsEnabled = user.SmsNotificationsEnabled,
+                Plan = user.Plan,
+                PlanStartedAt = user.PlanStartedAt
             };
         }
 

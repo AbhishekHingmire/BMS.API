@@ -57,6 +57,7 @@ namespace BMS.API.Modules.Owner.DTOs
         public PriceModifierType? PriceModifierType { get; set; }
         public decimal? PriceModifierValue { get; set; }
         public string? FloorPlanJson { get; set; }
+        public string? PlanOverrideIdsJson { get; set; }
 
         public System.Collections.Generic.List<SeatCreateDto> Seats { get; set; } = new();
     }
@@ -163,7 +164,7 @@ namespace BMS.API.Modules.Owner.DTOs
         public string Name { get; set; }
         public List<string> Tags { get; set; } = new();
         public object? PriceModifier { get; set; } // { type, value }
-        public Guid? ShiftOverrideId { get; set; }
+        public List<Guid> PlanOverrideIds { get; set; } = new();
         public object? FloorPlan { get; set; } // JSON deserialized
         public List<SeatResponseDto> Seats { get; set; } = new();
     }

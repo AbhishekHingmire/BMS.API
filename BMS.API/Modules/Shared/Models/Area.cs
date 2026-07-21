@@ -16,7 +16,10 @@ namespace BMS.API.Modules.Shared.Models
         public PriceModifierType? PriceModifierType { get; set; }
         public decimal? PriceModifierValue { get; set; }
         
-        public Guid? ShiftOverrideId { get; set; }
+        // JSON array of Plan ids this area is restricted to (e.g. ["guid1","guid2"]). Each plan
+        // already has its own shift, so this is effectively an area -> plan mapping. When
+        // null/empty, the area accepts every plan in the library (no override).
+        public string PlanOverrideIdsJson { get; set; }
 
         // Floor plan could be stored as JSON string to keep DB simple for now
         public string FloorPlanJson { get; set; }

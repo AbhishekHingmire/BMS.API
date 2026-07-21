@@ -20,6 +20,11 @@ namespace BMS.API.Modules.Owner.Models
         public string PasswordHash { get; set; }
         
         public OwnerRole Role { get; set; }
+
+        // Subscription plan: "free" | "starter" | "growth" | "professional" | "enterprise"
+        [MaxLength(20)]
+        public string Plan { get; set; } = "free";
+        public DateTime PlanStartedAt { get; set; } = DateTime.UtcNow;
         
         // Profile
         public string AvatarUrl { get; set; }

@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using BMS.API.Modules.Owner.Models;
 
@@ -24,6 +25,9 @@ namespace BMS.API.Modules.Owner.DTOs
 
         [Required]
         public OwnerRole Role { get; set; }
+
+        // "free" | "starter" | "growth" | "professional" | "enterprise" - defaults to free if omitted
+        public string Plan { get; set; }
     }
 
     public class OwnerLoginRequestDto
@@ -50,5 +54,7 @@ namespace BMS.API.Modules.Owner.DTOs
         public string Name { get; set; }
         public string Email { get; set; }
         public string Role { get; set; }
+        public string Plan { get; set; }
+        public DateTime PlanStartedAt { get; set; }
     }
 }

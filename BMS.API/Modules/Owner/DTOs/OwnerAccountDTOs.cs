@@ -19,6 +19,9 @@ namespace BMS.API.Modules.Owner.DTOs
 
         public bool EmailNotificationsEnabled { get; set; }
         public bool SmsNotificationsEnabled { get; set; }
+
+        public string Plan { get; set; }
+        public DateTime PlanStartedAt { get; set; }
     }
 
     public class UpdateOwnerProfileDto
