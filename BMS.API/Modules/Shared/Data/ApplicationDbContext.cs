@@ -31,6 +31,9 @@ namespace BMS.API.Modules.Shared.Data
         public DbSet<Review> Reviews { get; set; }
         public DbSet<City> Cities { get; set; }
         public DbSet<Locality> Localities { get; set; }
+        public DbSet<Enquiry> Enquiries { get; set; }
+        public DbSet<AttendanceRecord> AttendanceRecords { get; set; }
+        public DbSet<ReceiptShareToken> ReceiptShareTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -102,6 +105,26 @@ namespace BMS.API.Modules.Shared.Data
                 .WithMany(l => l.Bookings)
                 .HasForeignKey(b => b.LibraryId)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            // Enquiry relationships
+            modelBuilder.Entity<Enquiry>()
+                .HasOne(e => e.Library)
+                .WithMany()
+                .HasForeignKey(e => e.LibraryId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // Attendance: one mark per booking per calendar date
+            modelBuilder.Entity<AttendanceRecord>()
+                .HasIndex(a => new { a.BookingId, a.Date })
+                .IsUnique();
+
+            // Receipt share tokens: opaque token must be unique, and we frequently look up
+            // "does this booking already have a live token" so index BookingId too.
+            modelBuilder.Entity<ReceiptShareToken>()
+                .HasIndex(t => t.Token)
+                .IsUnique();
+            modelBuilder.Entity<ReceiptShareToken>()
+                .HasIndex(t => t.BookingId);
 
             modelBuilder.Entity<Booking>()
                 .HasOne(b => b.Area)

@@ -36,6 +36,9 @@ namespace BMS.API.Modules.Owner.Services
                 UpiId = user.UpiId,
                 EmailNotificationsEnabled = user.EmailNotificationsEnabled,
                 SmsNotificationsEnabled = user.SmsNotificationsEnabled,
+                MarketingEmailsEnabled = user.MarketingEmailsEnabled,
+                MarketingSmsEnabled = user.MarketingSmsEnabled,
+                MarketingWhatsAppEnabled = user.MarketingWhatsAppEnabled,
                 Plan = user.Plan,
                 PlanStartedAt = user.PlanStartedAt
             };
@@ -55,6 +58,9 @@ namespace BMS.API.Modules.Owner.Services
             user.UpiId = request.UpiId;
             user.EmailNotificationsEnabled = request.EmailNotificationsEnabled;
             user.SmsNotificationsEnabled = request.SmsNotificationsEnabled;
+            user.MarketingEmailsEnabled = request.MarketingEmailsEnabled;
+            user.MarketingSmsEnabled = request.MarketingSmsEnabled;
+            user.MarketingWhatsAppEnabled = request.MarketingWhatsAppEnabled;
 
             await _context.SaveChangesAsync();
 

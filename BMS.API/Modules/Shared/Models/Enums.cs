@@ -47,6 +47,14 @@ namespace BMS.API.Modules.Shared.Models
         Refunded
     }
 
+    public enum EnquiryStatus
+    {
+        New,
+        Contacted,
+        Converted,
+        Lost
+    }
+
     public enum PriceModifierType
     {
         Flat,

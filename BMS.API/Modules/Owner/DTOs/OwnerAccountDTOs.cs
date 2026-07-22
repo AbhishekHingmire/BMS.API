@@ -20,6 +20,10 @@ namespace BMS.API.Modules.Owner.DTOs
         public bool EmailNotificationsEnabled { get; set; }
         public bool SmsNotificationsEnabled { get; set; }
 
+        public bool MarketingEmailsEnabled { get; set; }
+        public bool MarketingSmsEnabled { get; set; }
+        public bool MarketingWhatsAppEnabled { get; set; }
+
         public string Plan { get; set; }
         public DateTime PlanStartedAt { get; set; }
     }
@@ -39,6 +43,10 @@ namespace BMS.API.Modules.Owner.DTOs
 
         public bool EmailNotificationsEnabled { get; set; }
         public bool SmsNotificationsEnabled { get; set; }
+
+        public bool MarketingEmailsEnabled { get; set; }
+        public bool MarketingSmsEnabled { get; set; }
+        public bool MarketingWhatsAppEnabled { get; set; }
     }
 
     public class NotificationRuleDto

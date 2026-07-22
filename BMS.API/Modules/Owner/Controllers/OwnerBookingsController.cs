@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using BMS.API.Modules.Owner.DTOs;
 using BMS.API.Modules.Owner.Services;
+using BMS.API.Modules.Shared.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -105,6 +106,15 @@ namespace BMS.API.Modules.Owner.Controllers
             }
 
             return Ok(booking);
+        }
+
+        [HttpPost("/api/owner/bookings/{bookingId}/share-receipt")]
+        public async Task<IActionResult> ShareReceipt(Guid bookingId, [FromServices] BMS.API.Modules.Shared.Data.ApplicationDbContext context)
+        {
+            if (!await _libraryService.IsBookingOwnedByAsync(bookingId, GetOwnerId())) return NotFound(new { message = "Booking not found." });
+
+            var result = await ReceiptShareHelper.CreateOrReuseShareTokenAsync(bookingId, context);
+            return Ok(result);
         }
     }
 }

@@ -732,6 +732,23 @@ namespace BMS.API.Modules.Owner.Services
             await using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
             try
             {
+                // A student (identified by phone number) can only hold one active/ongoing
+                // plan per library at a time. "Ongoing" here means any non-cancelled booking
+                // whose window hasn't fully ended yet (covers Active, Expiring, and
+                // still-unpaid/pending-collection walk-ins that haven't ended) - matches the
+                // frontend's "in window" concept in src/lib/status.ts.
+                var today = DateTime.UtcNow.Date;
+                var hasActivePlan = await _context.Bookings.AnyAsync(b =>
+                    b.LibraryId == request.LibraryId &&
+                    b.StudentContact == request.StudentContact &&
+                    b.Status != BookingStatus.Cancelled &&
+                    b.EndDate >= today);
+
+                if (hasActivePlan)
+                {
+                    throw new InvalidOperationException("This student already has an active plan at this library. Cancel the existing plan or wait for it to end before adding a new one.");
+                }
+
                 var isConflict = await _context.Bookings.AnyAsync(b =>
                     b.SeatId == request.SeatId &&
                     b.Status != BookingStatus.Cancelled &&

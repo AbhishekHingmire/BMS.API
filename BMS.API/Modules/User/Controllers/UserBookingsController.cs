@@ -9,6 +9,7 @@ using System;
 using System.Linq.Expressions;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using BMS.API.Modules.Shared.Services;
 
 namespace BMS.API.Modules.User.Controllers
 {
@@ -102,6 +103,19 @@ namespace BMS.API.Modules.User.Controllers
             return Ok(booking);
         }
 
+        [HttpPost("{id}/share-receipt")]
+        public async Task<IActionResult> ShareReceipt(Guid id)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+            var owned = await _context.Bookings.AnyAsync(b => b.Id == id && b.UserId == userId);
+            if (!owned) return NotFound(new { message = "Booking not found." });
+
+            var result = await ReceiptShareHelper.CreateOrReuseShareTokenAsync(id, _context);
+            return Ok(result);
+        }
+
         [HttpPost]
         public async Task<IActionResult> CreateBooking([FromBody] OnlineBookingDto dto)
         {
@@ -138,6 +152,22 @@ namespace BMS.API.Modules.User.Controllers
             await using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
             try
             {
+                // A student can only hold one active/ongoing plan per library at a time.
+                // "Ongoing" means any non-cancelled booking whose window hasn't fully ended
+                // yet (covers Active, Expiring, and still-unpaid bookings that haven't ended) -
+                // matches the frontend's "in window" concept in src/lib/status.ts.
+                var hasActivePlan = await _context.Bookings.AnyAsync(b =>
+                    b.LibraryId == dto.LibraryId &&
+                    b.UserId == userId &&
+                    b.Status != BookingStatus.Cancelled &&
+                    b.EndDate >= DateTime.UtcNow.Date);
+
+                if (hasActivePlan)
+                {
+                    await transaction.RollbackAsync();
+                    return BadRequest(new { message = "You already have an active plan at this library. Cancel your existing plan or wait for it to end before booking a new one." });
+                }
+
                 // Verify availability - inside the transaction so the check and the insert
                 // are atomic and a concurrent booking on the same seat can't slip through.
                 var isConflict = await _context.Bookings.AnyAsync(b =>

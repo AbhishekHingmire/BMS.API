@@ -39,6 +39,11 @@ namespace BMS.API.Modules.Owner.Models
         public bool EmailNotificationsEnabled { get; set; } = true;
         public bool SmsNotificationsEnabled { get; set; } = false;
 
+        // Marketing notifications (flags only - no SMS/WhatsApp provider wired up yet)
+        public bool MarketingEmailsEnabled { get; set; } = false;
+        public bool MarketingSmsEnabled { get; set; } = false;
+        public bool MarketingWhatsAppEnabled { get; set; } = false;
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 
