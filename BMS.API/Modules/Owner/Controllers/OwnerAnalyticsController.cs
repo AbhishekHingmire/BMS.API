@@ -122,6 +122,11 @@ namespace BMS.API.Modules.Owner.Controllers
                 .Where(b => (b.PaymentStatus == PaymentStatus.Paid || b.PaymentStatus == PaymentStatus.Refunded) && b.CreatedAt.Date >= today.AddDays(-7))
                 .Sum(b => b.Price - (b.RefundedAmount ?? 0m));
 
+            // Thirty Days Revenue
+            var thirtyDaysRevenue = bookings
+                .Where(b => (b.PaymentStatus == PaymentStatus.Paid || b.PaymentStatus == PaymentStatus.Refunded) && b.CreatedAt.Date >= today.AddDays(-30))
+                .Sum(b => b.Price - (b.RefundedAmount ?? 0m));
+
             // Today's Revenue (paid/refunded bookings actually created today, not the all-time total)
             var todaysRevenue = bookings
                 .Where(b => (b.PaymentStatus == PaymentStatus.Paid || b.PaymentStatus == PaymentStatus.Refunded) && b.CreatedAt.Date == today)
@@ -152,16 +157,33 @@ namespace BMS.API.Modules.Owner.Controllers
                 .Select(g => new { name = g.Key, value = g.Count() })
                 .ToList();
 
+            var expiringBookings = bookings
+                .Where(b => b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.Expired)
+                .GroupBy(b => b.UserId?.ToString() ?? (!string.IsNullOrEmpty(b.StudentContact) ? b.StudentContact : (b.StudentName ?? "unknown")))
+                .Select(g => g.OrderByDescending(x => x.EndDate).First())
+                .Where(b => (b.EndDate.Date - today).TotalDays >= -1 && (b.EndDate.Date - today).TotalDays <= 7)
+                .ToList();
+
+            var expiringMemberships = expiringBookings.Select(b => new {
+                id = b.Id,
+                studentName = b.StudentName ?? "Unknown",
+                studentContact = b.StudentContact ?? "",
+                libraryName = b.Library?.Name ?? "Unknown",
+                endDate = b.EndDate.ToString("yyyy-MM-dd"),
+                planName = b.Plan?.Duration.ToString() ?? "Custom"
+            }).ToList();
+
             return Ok(new
             {
                 todaysRevenue,
                 sevenDaysRevenue = sevenDaysRevenue,
+                thirtyDaysRevenue = thirtyDaysRevenue,
                 totalBookingsCount = bookings.Count,
                 activeBookingsCount = activeBookings,
                 occupiedNowCount = occupiedNowCount,
                 pendingArrivalCount = 0, // mock
-                expiringSoonCount = 0, // mock
-                expiringMemberships = new List<object>(), // mock
+                expiringSoonCount = expiringBookings.Count,
+                expiringMemberships = expiringMemberships,
                 revenueTotal,
                 revenueGrowth = 15, // Dummy growth
                 occupancyPercent,
