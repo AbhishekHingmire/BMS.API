@@ -749,15 +749,26 @@ namespace BMS.API.Modules.Owner.Services
                     throw new InvalidOperationException("This student already has an active plan at this library. Cancel the existing plan or wait for it to end before adding a new one.");
                 }
 
-                var isConflict = await _context.Bookings.AnyAsync(b =>
-                    b.SeatId == request.SeatId &&
-                    b.Status != BookingStatus.Cancelled &&
-                    b.StartDate < request.EndDate &&
-                    b.EndDate > request.StartDate);
+                // Fetch the incoming shift to check for time overlaps
+                var incomingShift = await _context.ShiftTemplates.FindAsync(request.ShiftId);
+                if (incomingShift == null)
+                {
+                    throw new InvalidOperationException("Invalid shift selected.");
+                }
+
+                var isConflict = await _context.Bookings
+                    .Include(b => b.Shift)
+                    .AnyAsync(b =>
+                        b.SeatId == request.SeatId &&
+                        b.Status != BookingStatus.Cancelled &&
+                        b.StartDate < request.EndDate &&
+                        b.EndDate > request.StartDate &&
+                        b.Shift.StartTime < incomingShift.EndTime &&
+                        b.Shift.EndTime > incomingShift.StartTime);
 
                 if (isConflict)
                 {
-                    throw new InvalidOperationException("The selected seat is already booked for these dates.");
+                    throw new InvalidOperationException("The selected seat is already booked for these dates and shift time.");
                 }
 
                 var booking = new Booking

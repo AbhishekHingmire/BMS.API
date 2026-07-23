@@ -168,18 +168,31 @@ namespace BMS.API.Modules.User.Controllers
                     return BadRequest(new { message = "You already have an active plan at this library. Cancel your existing plan or wait for it to end before booking a new one." });
                 }
 
+                // Fetch the incoming shift to check for time overlaps
+                var incomingShift = await _context.ShiftTemplates.FindAsync(dto.ShiftId);
+                if (incomingShift == null)
+                {
+                    await transaction.RollbackAsync();
+                    return BadRequest(new { message = "Invalid shift selected." });
+                }
+
                 // Verify availability - inside the transaction so the check and the insert
                 // are atomic and a concurrent booking on the same seat can't slip through.
-                var isConflict = await _context.Bookings.AnyAsync(b =>
-                    b.SeatId == dto.SeatId &&
-                    b.Status != BookingStatus.Cancelled &&
-                    b.StartDate < dto.EndDate &&
-                    b.EndDate > dto.StartDate);
+                // We check if the dates overlap AND the shift times overlap.
+                var isConflict = await _context.Bookings
+                    .Include(b => b.Shift)
+                    .AnyAsync(b =>
+                        b.SeatId == dto.SeatId &&
+                        b.Status != BookingStatus.Cancelled &&
+                        b.StartDate < dto.EndDate &&
+                        b.EndDate > dto.StartDate &&
+                        b.Shift.StartTime < incomingShift.EndTime &&
+                        b.Shift.EndTime > incomingShift.StartTime);
 
                 if (isConflict)
                 {
                     await transaction.RollbackAsync();
-                    return BadRequest(new { message = "The selected seat is no longer available for these dates." });
+                    return BadRequest(new { message = "The selected seat is no longer available for these dates and shift time." });
                 }
 
                 var booking = new Booking
