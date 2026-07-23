@@ -803,7 +803,7 @@ namespace BMS.API.Modules.Owner.Services
                     var enquiry = await _context.Enquiries.FindAsync(request.EnquiryId.Value);
                     if (enquiry != null && enquiry.LibraryId == request.LibraryId)
                     {
-                        enquiry.Status = "Converted";
+                        enquiry.Status = EnquiryStatus.Converted;
                     }
                 }
 
