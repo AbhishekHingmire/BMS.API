@@ -117,6 +117,7 @@ namespace BMS.API.Modules.Owner.DTOs
         public string StudentContact { get; set; }
         public PaymentStatus PaymentStatus { get; set; }
         public decimal Price { get; set; }
+        public Guid? EnquiryId { get; set; }
     }
 
     public class UpdateBookingDto

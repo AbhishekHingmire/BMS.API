@@ -796,6 +796,17 @@ namespace BMS.API.Modules.Owner.Services
                 };
 
                 await _context.Bookings.AddAsync(booking);
+
+                // Convert enquiry if provided
+                if (request.EnquiryId.HasValue)
+                {
+                    var enquiry = await _context.Enquiries.FindAsync(request.EnquiryId.Value);
+                    if (enquiry != null && enquiry.LibraryId == request.LibraryId)
+                    {
+                        enquiry.Status = "Converted";
+                    }
+                }
+
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 

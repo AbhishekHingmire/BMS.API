@@ -67,12 +67,15 @@ namespace BMS.API.Modules.Owner.Services
                 .Select(g => g.OrderByDescending(x => x.EndDate).First())
                 .ToList();
 
-            var expiringBookings = latestBookings.Where(b => (b.Status == BookingStatus.Active) && (b.EndDate - today).TotalDays >= -1 && (b.EndDate - today).TotalDays <= 7).ToList();
+            var expiringBookings = latestBookings.Where(b => 
+                (b.Status == BookingStatus.Active) && 
+                (b.EndDate.Date - today).TotalDays >= -1 && 
+                (b.EndDate.Date - today).TotalDays <= 7).ToList();
             
             Console.WriteLine($"[DEBUG] Total Latest Bookings: {latestBookings.Count}");
             foreach (var b in latestBookings)
             {
-                var diff = (b.EndDate - today).TotalDays;
+                var diff = (b.EndDate.Date - today).TotalDays;
                 Console.WriteLine($"[DEBUG] Booking ID: {b.Id}, Name: {b.StudentName}, Status: {b.Status}, EndDate: {b.EndDate}, DiffDays: {diff}");
             }
             
@@ -89,6 +92,7 @@ namespace BMS.API.Modules.Owner.Services
             
             var monthStart = today.AddDays(-30);
 
+            // Using .Date <= today instead of exact Date equals, just in case there are timezone shifts.
             dto.TodaysRevenue = paidBookings.Where(b => b.CreatedAt.Date == today).Sum(b => b.Price - (b.RefundedAmount ?? 0m));
             dto.SevenDaysRevenue = paidBookings.Where(b => b.CreatedAt.Date >= weekStart).Sum(b => b.Price - (b.RefundedAmount ?? 0m));
             dto.ThirtyDaysRevenue = paidBookings.Where(b => b.CreatedAt.Date >= monthStart).Sum(b => b.Price - (b.RefundedAmount ?? 0m));
