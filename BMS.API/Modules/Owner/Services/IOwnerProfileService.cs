@@ -9,6 +9,7 @@ namespace BMS.API.Modules.Owner.Services
     {
         Task<OwnerProfileDto> GetProfileAsync(Guid ownerId);
         Task<OwnerProfileDto> UpdateProfileAsync(Guid ownerId, UpdateOwnerProfileDto request);
+        Task UpdateFcmTokenAsync(Guid ownerId, string fcmToken);
         
         Task<IEnumerable<NotificationRuleDto>> GetRulesAsync(Guid ownerId);
         Task<NotificationRuleDto> UpdateRuleAsync(Guid ownerId, UpdateNotificationRuleDto request);

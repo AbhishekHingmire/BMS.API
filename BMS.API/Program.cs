@@ -8,6 +8,8 @@ using BMS.API.Modules.Shared.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,6 +35,22 @@ builder.Services.AddScoped<IOwnerAnalyticsService, OwnerAnalyticsService>();
 builder.Services.AddSingleton<INotificationRuleEngine, NotificationRuleEngine>();
 builder.Services.AddHostedService<ExpiryNotificationService>();
 builder.Services.AddHostedService<StalePendingPaymentCleanupService>();
+// ... Inside DI setup
+builder.Services.AddSingleton<IFirebasePushService, FirebasePushService>();
+
+// Initialize Firebase
+var firebaseCredentialsPath = Path.Combine(builder.Environment.ContentRootPath, "firebase-adminsdk.json");
+if (File.Exists(firebaseCredentialsPath))
+{
+    FirebaseApp.Create(new AppOptions
+    {
+        Credential = GoogleCredential.FromFile(firebaseCredentialsPath)
+    });
+}
+else
+{
+    Console.WriteLine("WARNING: firebase-adminsdk.json not found! Push notifications will not work.");
+}
 
 // User Services
 builder.Services.AddScoped<BMS.API.Modules.User.Services.UserAuthService>();

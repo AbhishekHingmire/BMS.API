@@ -55,8 +55,27 @@ namespace BMS.API.Modules.User.Controllers
                 user.Locality = request.Locality;
 
             await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
             return Ok();
         }
+
+        [HttpPost("device-token")]
+        public async Task<IActionResult> UpdateDeviceToken([FromBody] UserDeviceTokenRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.Token)) return BadRequest("Token is required");
+
+            var user = await _context.EndUsers.FindAsync(GetUserId());
+            if (user == null) return NotFound();
+
+            user.FcmToken = request.Token;
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+    }
+
+    public class UserDeviceTokenRequest
+    {
+        public string Token { get; set; }
     }
 
     public class UpdateUserSettingsDto

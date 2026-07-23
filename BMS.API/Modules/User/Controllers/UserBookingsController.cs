@@ -217,6 +217,23 @@ namespace BMS.API.Modules.User.Controllers
                 await transaction.CommitAsync();
 
                 await _ruleEngine.ProcessBookingCreatedAsync(booking);
+                
+                // Notify the Owner via Push Notification
+                var library = await _context.Libraries.FindAsync(dto.LibraryId);
+                if (library != null)
+                {
+                    var ownerUser = await _context.OwnerUsers.FindAsync(library.OwnerId);
+                    if (ownerUser != null && !string.IsNullOrWhiteSpace(ownerUser.FcmToken))
+                    {
+                        var pushService = HttpContext.RequestServices.GetService(typeof(BMS.API.Modules.Shared.Services.IFirebasePushService)) as BMS.API.Modules.Shared.Services.IFirebasePushService;
+                        if (pushService != null)
+                        {
+                            var title = "New Booking Received!";
+                            var body = $"{booking.StudentName} just booked a seat at {library.Name}.";
+                            await pushService.SendPushNotificationAsync(ownerUser.FcmToken, title, body);
+                        }
+                    }
+                }
 
                 return Ok(booking);
             }

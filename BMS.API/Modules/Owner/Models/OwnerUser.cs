@@ -38,6 +38,9 @@ namespace BMS.API.Modules.Owner.Models
         // Notifications
         public bool EmailNotificationsEnabled { get; set; } = true;
         public bool SmsNotificationsEnabled { get; set; } = false;
+        
+        [MaxLength(255)]
+        public string? FcmToken { get; set; }
 
         // Marketing notifications (flags only - no SMS/WhatsApp provider wired up yet)
         public bool MarketingEmailsEnabled { get; set; } = false;

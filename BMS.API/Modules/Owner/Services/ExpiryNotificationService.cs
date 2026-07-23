@@ -88,6 +88,14 @@ namespace BMS.API.Modules.Owner.Services
                         };
 
                         context.UserNotifications.Add(notification);
+                        
+                        // Send Push Notification
+                        var user = await context.EndUsers.FindAsync(targetUserId.Value);
+                        if (user != null && !string.IsNullOrEmpty(user.FcmToken))
+                        {
+                            var pushService = scope.ServiceProvider.GetRequiredService<BMS.API.Modules.Shared.Services.IFirebasePushService>();
+                            await pushService.SendPushNotificationAsync(user.FcmToken, subject, body);
+                        }
                     }
                 }
 

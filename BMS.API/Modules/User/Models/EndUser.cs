@@ -35,5 +35,8 @@ namespace BMS.API.Modules.User.Models
 
         [MaxLength(100)]
         public string? Occupation { get; set; }
+        
+        [MaxLength(255)]
+        public string? FcmToken { get; set; }
     }
 }

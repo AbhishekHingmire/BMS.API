@@ -67,6 +67,16 @@ namespace BMS.API.Modules.Owner.Services
             return await GetProfileAsync(ownerId);
         }
 
+        public async Task UpdateFcmTokenAsync(Guid ownerId, string fcmToken)
+        {
+            var user = await _context.OwnerUsers.FindAsync(ownerId);
+            if (user != null)
+            {
+                user.FcmToken = fcmToken;
+                await _context.SaveChangesAsync();
+            }
+        }
+
         public async Task<IEnumerable<NotificationRuleDto>> GetRulesAsync(Guid ownerId)
         {
             var rules = await _context.OwnerNotificationRules

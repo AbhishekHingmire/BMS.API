@@ -40,5 +40,19 @@ namespace BMS.API.Modules.Owner.Controllers
             
             return Ok(profile);
         }
+
+        [HttpPost("device-token")]
+        public async Task<IActionResult> UpdateDeviceToken([FromBody] DeviceTokenRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.Token)) return BadRequest("Token is required");
+            
+            await _profileService.UpdateFcmTokenAsync(GetOwnerId(), request.Token);
+            return Ok();
+        }
+    }
+
+    public class DeviceTokenRequest
+    {
+        public string Token { get; set; }
     }
 }
