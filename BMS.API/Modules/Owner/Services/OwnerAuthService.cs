@@ -74,9 +74,7 @@ namespace BMS.API.Modules.Owner.Services
                 return new AuthResponseDto { Message = "Email is already registered." };
             }
 
-            var allowedPlans = new[] { "free", "starter", "growth", "professional", "enterprise" };
-            var plan = (request.Plan ?? "free").ToLowerInvariant();
-            if (!allowedPlans.Contains(plan)) plan = "free";
+            var plan = "free";
 
             var user = new OwnerUser
             {
